@@ -63,6 +63,35 @@ def add_custom_bullet(doc, label, value):
     value_run.font.name = 'Calibri'
     value_run.font.size = Pt(12)
 
+def add_custom_bullet_link(doc, label, value, hyperlink_text, hyperlink_url):
+    p = doc.add_paragraph(style='List Bullet')
+    run = p.add_run(label)
+    run.bold = True
+    run.font.name = 'Calibri'
+    run.font.size = Pt(12)
+
+    # Add initial text before hyperlink
+    value_parts = value.split(hyperlink_text)
+    if len(value_parts) > 1:
+        value_run = p.add_run(value_parts[0])
+        value_run.font.name = 'Calibri'
+        value_run.font.size = Pt(12)
+
+        # Add hyperlink text
+        add_hyperlink(p, hyperlink_text, hyperlink_url)
+
+        # Add text after hyperlink
+        value_run = p.add_run(value_parts[1])
+        value_run.font.name = 'Calibri'
+        value_run.font.size = Pt(12)
+    else:
+        value_run = p.add_run(value)
+        value_run.font.name = 'Calibri'
+        value_run.font.size = Pt(12)
+
+    return p
+
+
 # Hyperlink 
 
 def add_hyperlink(paragraph, text, url):
@@ -202,17 +231,28 @@ for producer, group in data.groupby('Producer (Project)'):
     removals_data = group[['Field Name (MRV)', 'baseline_dsoc', 'dsoc', 'removed']].copy()
     removals_data.rename(columns={'Field Name (MRV)': 'Field', 'removed': 'Removed'}, inplace=True)
     total_removals = removals_data['Removed'].sum()
+    total_carbon_g = total_reductions + total_removals
 
+    # Total Carbon Impacts
+    add_custom_bullet(doc, "Total Carbon Impacts Generated: ", f"{total_carbon_g:.3f} metric tonnes of carbon dioxide equivalent (mtCO2e)")
 
     # Create a bullet point for Total Reductions and apply styles
-    add_custom_bullet(doc, "Total Reductions: ", f"{total_reductions:.3f} tonnes CO2e")
+    add_custom_bullet(doc, "Emission Reductions: ", f"Your practice changes avoided {total_reductions:.3f} mtCO2e.")
 
     # Create a bullet point for Total Removals and apply styles
-    add_custom_bullet(doc, "Total Removals: ", f"{total_removals:.3f} tonnes CO2e")
+    add_custom_bullet(doc, "Carbon Removals: ", f"Your soils removed {total_removals:.3f} mtCO2e")
 
     # Create a bullet point for Total Acres and apply styles
-    add_custom_bullet(doc, "Total Acres: ", f"{fields_data['Acres'].sum():.3f}")
+    add_custom_bullet(doc, "Total Modeled Acres*: ", f"{fields_data['Acres'].sum():.3f}")
 
+
+    # Add another run for note aboute modeled acres
+    summary_para3 = doc.add_paragraph()
+    run_regular = summary_para3.add_run("*ESMC requires complete historical data to generate a baseline, so fields with historical data gaps are not modeled.")
+    run_regular.font.bold = False  # Not necessary as False is the default
+    run_regular.font.name = 'Calibri'
+    run_regular.font.size = Pt(12)
+    run_regular.font.color.rgb = RGBColor(0, 0, 0)
 
     # Eco-Harvest Program Info 
     para = doc.add_heading()
@@ -225,7 +265,10 @@ for producer, group in data.groupby('Producer (Project)'):
 
     add_custom_bullet(doc, "Customizable practices: ", f"Choose how to implement regenerative practices.")
     add_custom_bullet(doc, "Fair Payments: ", f"As a non-profit, ESMC maximizes producer benefits.")
-    add_custom_bullet(doc, "Return on Investment: ", f"Many farmers experience a 15-25% return on investment after 3–5-years of regenerative farming.")
+    add_custom_bullet_link(doc, "Return on Investment: ", 
+                  "Many farmers experience a 15-25% return on investment after 3–5 years of regenerative farming.", 
+                  "regenerative farming", 
+                  "https://www.bcg.com/publications/2023/regenerative-agriculture-benefits-germany-beyond")
     add_custom_bullet(doc, "Weather-Ready Farming: ", f"Thank you for participating in the Eco-Harvest program. Continue working with your advisor to improve your soil health and boost your farm’s productivity and earnings.")
 
     # Thank You 
@@ -254,13 +297,30 @@ for producer, group in data.groupby('Producer (Project)'):
     run_regular.font.color.rgb = RGBColor(0, 0, 0)
     add_hyperlink(summary_para1, 'support@ecoharvest.ag', 'http://www.ecoharvest.ag')
 
+
     ############## SECTION 2 ##################################
+
+
+    ## Soil Data section
+    para = doc.add_heading()
+    run = para.add_run(f"Soil Sampling Results")
+    run_font = run.font
+    run_font.name = 'Calibri'
+    run_font.size = Pt(14)
+    run_font.underline = WD_UNDERLINE.SINGLE
+    run_font.color.rgb = RGBColor(112, 173, 71)
+
+    ## Soil Table 
+    soil_data = group[['Field Name (MRV)', 'soil_avg_soc', 'soil_avg_ph', 'soil_avg_bulkdensity', 'soil_clay_fraction']].copy()
+    soil_data.rename(columns={'Field Name (MRV)': 'Field', 'soil_avg_soc': 'SOC', 'soil_avg_ph': 'pH', 'soil_avg_bulkdensity': 'BD', 'soil_clay_fraction': 'Clay'}, inplace=True)
+    create_table(doc, soil_data.values, ['Field', 'SOC', 'pH', 'BD', 'Clay'])
+
      # Appendix 
     para = doc.add_heading()
     run = para.add_run(f"Appendix")
     run_font = run.font
     run_font.name = 'Calibri'
-    run_font.size = Pt(16)
+    run_font.size = Pt(14)
     run_font.underline = WD_UNDERLINE.SINGLE
     run_font.color.rgb = RGBColor(0, 0, 0)
 
@@ -322,10 +382,6 @@ for producer, group in data.groupby('Producer (Project)'):
     # practices_data.rename(columns={'Field Name (MRV)': 'Field'}, inplace=True)
     # create_table(doc, practices_data.values, ['Field', 'Practice Change'], title='Practices')
 
-    # # Soil Data section
-    # soil_data = group[['Field Name (MRV)', 'soil_avg_soc', 'soil_avg_ph', 'soil_avg_bulkdensity', 'soil_clay_fraction']].copy()
-    # soil_data.rename(columns={'Field Name (MRV)': 'Field', 'soil_avg_soc': 'SOC', 'soil_avg_ph': 'pH', 'soil_avg_bulkdensity': 'BD', 'soil_clay_fraction': 'Clay'}, inplace=True)
-    # create_table(doc, soil_data.values, ['Field', 'SOC', 'pH', 'BD', 'Clay'], title='Soil Data')
 
     # Reductions section
     # doc.add_heading('Reductions', level=1)
