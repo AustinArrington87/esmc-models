@@ -10,8 +10,14 @@ import os
 
 # Load the data
 year = "2021"
-file_path = year+'_Verified.csv'
+batch = "Verified"
+file_path = year+'_'+batch+'_Adjusted.csv'
 data = pd.read_csv(file_path)
+
+# Define the standard style settings
+font_name = 'Calibri'
+font_size = Pt(12)
+font_color = RGBColor(0, 0, 0)
 
 # Create the 'Producers' directory if it doesn't exist
 output_dir = "Producers"
@@ -46,6 +52,33 @@ def create_table(document, data, column_names, title=None, note=None):
         para = document.add_paragraph()
         run = para.add_run(note)
         run.italic = True
+
+# functon for creating summary tables 
+def create_table(doc, data, headers, font_name, font_size, font_color):
+    # Create a table with the specified data and headers
+    table = doc.add_table(rows=len(data) + 1, cols=len(headers))
+    table.style = 'Table Grid'
+
+    # Insert column headers and format them
+    for i, header in enumerate(headers):
+        cell = table.cell(0, i)
+        run = cell.paragraphs[0].add_run(header)
+        run.font.name = font_name
+        run.font.size = font_size
+        run.font.color.rgb = font_color
+        run.font.bold = True  # Making headers bold
+        cell.paragraphs[0].alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+
+    # Insert the data into the table
+    for row_idx, row_data in enumerate(data, start=1):
+        for col_idx, cell_data in enumerate(row_data):
+            cell = table.cell(row_idx, col_idx)
+            if isinstance(cell_data, float):
+                cell_data = f"{cell_data:.3f}"  # Truncate to 3 decimal places
+            run = cell.paragraphs[0].add_run(str(cell_data))
+            run.font.name = font_name
+            run.font.size = font_size
+            run.font.color.rgb = font_color
 
 # Calculate Delta for N2O, Methane, Fossil Fuel, Pesticides, and Upstream Emissions
 def calculate_delta(group, baseline_column, practice_column):
@@ -204,12 +237,28 @@ for producer, group in data.groupby('Producer (Project)'):
     run_bold.font.size = Pt(12)
     run_bold.font.color.rgb = RGBColor(0, 0, 0)
 
-    # Add another run for "Project" without bold
+    # Add another run for "Year" without bold
     run_regular = summary_para3.add_run(year)
     run_regular.font.bold = False  # Not necessary as False is the default
     run_regular.font.name = 'Calibri'
     run_regular.font.size = Pt(12)
     run_regular.font.color.rgb = RGBColor(0, 0, 0)
+
+    # Add a run for "Batch" and make it bold
+    summary_para4 = doc.add_paragraph()
+    run_bold = summary_para4.add_run('Batch: ')
+    run_bold.font.bold = True
+    run_bold.font.name = 'Calibri'
+    run_bold.font.size = Pt(12)
+    run_bold.font.color.rgb = RGBColor(0, 0, 0)
+
+    # Add another run for "Batch" without bold
+    run_regular = summary_para4.add_run(batch)
+    run_regular.font.bold = False  # Not necessary as False is the default
+    run_regular.font.name = 'Calibri'
+    run_regular.font.size = Pt(12)
+    run_regular.font.color.rgb = RGBColor(0, 0, 0)
+
 
     # YOUR RESULTS 
     para = doc.add_heading()
@@ -224,9 +273,10 @@ for producer, group in data.groupby('Producer (Project)'):
     fields_data = group[['Field Name (MRV)', 'Acres', 'Commodity']].copy()  # Replace 'Commodity'
     fields_data.rename(columns={'Field Name (MRV)': 'Field'}, inplace=True)
     # Reductions section load 
-    reductions_data = group[['Field Name (MRV)', 'reduced']].copy()
+    #reductions_data = group[['Field Name (MRV)', 'reduced']].copy()
+    reductions_data = group[['Field Name (MRV)', 'reduced_adjusted']].copy()
     reductions_data.rename(columns={'Field Name (MRV)': 'Field'}, inplace=True)
-    total_reductions = reductions_data['reduced'].sum()
+    total_reductions = reductions_data['reduced_adjusted'].sum()
     # Removals section load 
     removals_data = group[['Field Name (MRV)', 'baseline_dsoc', 'dsoc', 'removed']].copy()
     removals_data.rename(columns={'Field Name (MRV)': 'Field', 'removed': 'Removed'}, inplace=True)
@@ -251,7 +301,7 @@ for producer, group in data.groupby('Producer (Project)'):
     run_regular = summary_para3.add_run("*ESMC requires complete historical data to generate a baseline, so fields with historical data gaps are not modeled.")
     run_regular.font.bold = False  # Not necessary as False is the default
     run_regular.font.name = 'Calibri'
-    run_regular.font.size = Pt(12)
+    run_regular.font.size = Pt(9)
     run_regular.font.color.rgb = RGBColor(0, 0, 0)
 
     # Eco-Harvest Program Info 
@@ -310,89 +360,99 @@ for producer, group in data.groupby('Producer (Project)'):
     run_font.underline = WD_UNDERLINE.SINGLE
     run_font.color.rgb = RGBColor(112, 173, 71)
 
+    # Thank You 
+    thanks_para2 = doc.add_paragraph()
+    # Add another run for "Producer-1" without bold
+    run_regular = thanks_para2.add_run("Thank you for participating in the Eco-Harvest program. Continue working with your advisor to improve your soil health and boost your farm’s productivity and earnings.")
+    run_regular.font.name = 'Calibri'
+    run_regular.font.size = Pt(12)
+    run_regular.font.color.rgb = RGBColor(0, 0, 0)
+
+
+    soil_bullet_points = [
+    "SOC – The percentage of soil that is organic carbon.  2-6% is optimal.",
+    "pH – A measurement of acidity or alkalinity of the soil. Optimal rankings are 4-8.",
+    "BD – Bulk Density is the oven dry weight of soil per unit volume (g/cm3) ",
+    "Clay - The percentage of your soil that is clay, 20-35% is optimal. "
+    ]
+    for point in soil_bullet_points:
+        paragraph = doc.add_paragraph()
+        run_bullet_regular = paragraph.add_run(f'• {point}')
+        run_bullet_regular.font.name = font_name
+        run_bullet_regular.font.size = font_size
+        run_bullet_regular.font.color.rgb = font_color
+
     ## Soil Table 
     soil_data = group[['Field Name (MRV)', 'soil_avg_soc', 'soil_avg_ph', 'soil_avg_bulkdensity', 'soil_clay_fraction']].copy()
     soil_data.rename(columns={'Field Name (MRV)': 'Field', 'soil_avg_soc': 'SOC', 'soil_avg_ph': 'pH', 'soil_avg_bulkdensity': 'BD', 'soil_clay_fraction': 'Clay'}, inplace=True)
-    create_table(doc, soil_data.values, ['Field', 'SOC', 'pH', 'BD', 'Clay'])
+    #create_table(doc, soil_data.values, ['Field', 'SOC', 'pH', 'BD', 'Clay'])
+    # Create a table with the specified data and headers
+    headers = ['Field', 'SOC', 'pH', 'BD', 'Clay']
+    data = soil_data.values
+    table = doc.add_table(rows=len(data) + 1, cols=len(headers))
+    table.style = 'Table Grid'
 
-     # Appendix 
-    para = doc.add_heading()
-    run = para.add_run(f"Appendix")
-    run_font = run.font
-    run_font.name = 'Calibri'
-    run_font.size = Pt(14)
-    run_font.underline = WD_UNDERLINE.SINGLE
-    run_font.color.rgb = RGBColor(0, 0, 0)
+    # Insert column headers and format them
+    for i, header in enumerate(headers):
+        cell = table.cell(0, i)
+        run = cell.paragraphs[0].add_run(header)
+        run.font.name = font_name
+        run.font.size = font_size
+        run.font.color.rgb = font_color
+        run.font.bold = True  # Making headers bold
+        cell.paragraphs[0].alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
 
+    # Insert the data into the table
+    for row_idx, row_data in enumerate(data, start=1):
+        for col_idx, cell_data in enumerate(row_data):
+            cell = table.cell(row_idx, col_idx)
+            if isinstance(cell_data, float):
+                cell_data = f"{cell_data:.3f}"
+            run = cell.paragraphs[0].add_run(str(cell_data))
+            run.font.name = font_name
+            run.font.size = font_size
+            run.font.color.rgb = font_color
+
+    ####################################
+
+    ## Carbon Impact section
     para = doc.add_heading()
     run = para.add_run(f"Carbon Impact Explained")
     run_font = run.font
     run_font.name = 'Calibri'
-    run_font.size = Pt(12)
+    run_font.size = Pt(14)
     run_font.underline = WD_UNDERLINE.SINGLE
-    run_font.color.rgb = RGBColor(0, 0, 0)
+    run_font.color.rgb = RGBColor(112, 173, 71)
 
-    summary_para1 = doc.add_paragraph()
-    run_regular = summary_para1.add_run("ESMC uses historical data, a scientific model, soil samples and weather data to calculate emissions reductions and soil carbon removals. Any negative emissions are increased emissions, which is not unusual in the early years of adopting a practice change. If concerned, please speak with your technical advisor about further modifications to your practice change(s). ")
-
-    summary_para2 = doc.add_paragraph()
-    # Add a run for "Producer:" and make it bold
-    run_bold = summary_para2.add_run('Greenhouse Gas Emissions (GHG) Reductions (mtCO2e) ')
-    run_bold.font.bold = True
-    run_bold.font.name = 'Calibri'
-    run_bold.font.size = Pt(12)
-    run_bold.font.color.rgb = RGBColor(0, 0, 0)
-
+    # Thank You - Carbon 
+    thanks_para3 = doc.add_paragraph()
     # Add another run for "Producer-1" without bold
-    run_regular = summary_para2.add_run("are the sum of the reductions of methane (CH4), direct nitrous oxide (N2O), indirect nitrous oxide (N2O) and supply chain and operational emissions between the baseline year and the project year.")
-    run_regular.font.bold = False  # Not necessary as False is the default
+    run_regular = thanks_para3.add_run("ESMC uses historical data, a scientific model, soil samples and weather data to calculate emissions reductions and soil carbon removals. Any negative emissions are increased emissions, which is not unusual in the early years of adopting a practice change. If concerned, please speak with your technical advisor about further modifications to your practice change(s).")
     run_regular.font.name = 'Calibri'
     run_regular.font.size = Pt(12)
     run_regular.font.color.rgb = RGBColor(0, 0, 0)
 
+
+     # Carbon Info 
+
+    add_custom_bullet(doc, "Greenhouse Gas Emissions (GHG) Reductions (mtCO2e)  ", f" are the sum of the reductions of methane (CH4), direct nitrous oxide (N2O), indirect nitrous oxide (N2O) and supply chain and operational emissions** between the baseline year and the project year.")
+    add_custom_bullet(doc, "Soil Carbon Removals (mtCO2e): ", f" The difference in the amount of carbon in the soil between the baseline year and the project year. ")
+
+
+     # Add another run for note aboute modeled acres
     summary_para3 = doc.add_paragraph()
-    # Add a run for "Producer:" and make it bold
-    run_bold = summary_para3.add_run('Soil Carbon Removals (mtCO2e): ')
-    run_bold.font.bold = True
-    run_bold.font.name = 'Calibri'
-    run_bold.font.size = Pt(12)
-    run_bold.font.color.rgb = RGBColor(0, 0, 0)
-
-    # Add another run for "Producer-1" without bold
-    run_regular = summary_para3.add_run("The difference in the amount of carbon in the soil between the baseline year and the project year.")
+    run_regular = summary_para3.add_run("**Upstream and on-field process emissions associated with management such as fuel used on farm and imbedded emissions of fertilizer products; ESMC utilized emission factors from Ecoinvent and WFLD.")
     run_regular.font.bold = False  # Not necessary as False is the default
     run_regular.font.name = 'Calibri'
-    run_regular.font.size = Pt(12)
+    run_regular.font.size = Pt(9)
     run_regular.font.color.rgb = RGBColor(0, 0, 0)
 
+     
     # IMPACT Breakdown Table 
     
 
     ############## SECTION 3 ##################################
 
-    # # Fields section
-    # create_table(doc, fields_data.values, ['Field', 'Acres', 'Commodity'], title='Fields')
-    # doc.add_paragraph()
-    # para = doc.add_paragraph()
-    # run = para.add_run(f"Total Acres: {fields_data['Acres'].sum():.2f}")
-    # run.italic = True
-
-    # # Practices section
-    # practices_data = group[['Field Name (MRV)', 'Practice Change']].copy()
-    # practices_data.rename(columns={'Field Name (MRV)': 'Field'}, inplace=True)
-    # create_table(doc, practices_data.values, ['Field', 'Practice Change'], title='Practices')
-
-
-    # Reductions section
-    # doc.add_heading('Reductions', level=1)
-    # doc.add_paragraph("This section shows the GHG emissions reductions from the intervention, and includes DNDC modeled reductions as well as reductions from field activity changes (calculated through ecoinvent3.8 emission factors).")
-    
-    # # Example for Total Reductions
-    # create_table(doc, reductions_data.values, ['Field', 'Reduced'], title='Total Reductions')
-    # doc.add_paragraph()
-    # para = doc.add_paragraph()
-    # run = para.add_run(f"Total Reductions: {total_reductions:.3f} tonnes CO2e")
-    # run.italic = True
 
     # Similar approach for N2O, Methane, etc.
     
@@ -406,98 +466,81 @@ for producer, group in data.groupby('Producer (Project)'):
         'n2o_direct': 'Direct N2O Practice',
         'Delta Direct N2O': 'Delta'
     }, inplace=True)
-    # create_table(doc, n2o_data.values, ['Field', 'Direct N2O Baseline', 'Direct N2O Practice', 'Delta'], title='N2O Direct Emissions')
-    # doc.add_paragraph()
-    # Summarize the total Delta Direct N2O
+ 
     total_delta_direct_n2o = n2o_data['Delta'].sum()
-    # para = doc.add_paragraph()
-    # run = para.add_run(f"Total Direct N2O Reductions: {total_delta_direct_n2o:.3f} tonnes CO2e")
-    # run.italic = True
 
     #Indirect N2O
-    group['Delta Indirect N2O'] = calculate_delta(group, 'baseline_n2o_indirect', 'n2o_indirect')
+    group['Delta Indirect N2O'] = calculate_delta(group, 'baseline_n2o_indirect_adjusted', 'n2o_indirect_adjusted')
     # N2O Direct section
-    n2oindirect_data = group[['Field Name (MRV)', 'baseline_n2o_indirect', 'n2o_indirect', 'Delta Indirect N2O']].copy()
+    n2oindirect_data = group[['Field Name (MRV)', 'baseline_n2o_indirect_adjusted', 'n2o_indirect_adjusted', 'Delta Indirect N2O']].copy()
     n2oindirect_data.rename(columns={
         'Field Name (MRV)': 'Field',
-        'baseline_n2o_indirect': 'Indirect N2O Baseline',
-        'n2o_indirect': 'Indirect N2O Practice',
+        'baseline_n2o_indirect_adjusted': 'Indirect N2O Baseline',
+        'n2o_indirect_adjusted': 'Indirect N2O Practice',
         'Delta Indirect N2O': 'Delta'
     }, inplace=True)
-    # create_table(doc, n2oindirect_data.values, ['Field', 'Indirect N2O Baseline', 'Indirect N2O Practice', 'Delta'], title='N2O Indirect Emissions')
-    # doc.add_paragraph()
-    # Summarize the total Delta Indirect N2O
-    total_delta_indirect_n2o = n2oindirect_data['Delta'].sum()
-    # para = doc.add_paragraph()
-    # run = para.add_run(f"Total Indirect N2O Reductions: {total_delta_indirect_n2o:.3f} tonnes CO2e")
-    # run.italic = True
 
+    total_delta_indirect_n2o = n2oindirect_data['Delta'].sum()
+ 
     # Methane 
-    group['Delta Methane'] = calculate_delta(group, 'baseline_methane', 'methane')
+    group['Delta Methane'] = calculate_delta(group, 'baseline_methane_adjusted', 'methane_adjusted')
     # Methane section
-    methane_data = group[['Field Name (MRV)', 'baseline_methane', 'methane', 'Delta Methane']].copy()
+    methane_data = group[['Field Name (MRV)', 'baseline_methane_adjusted', 'methane_adjusted', 'Delta Methane']].copy()
     methane_data.rename(columns={
         'Field Name (MRV)': 'Field',
-        'baseline_methane': 'CH4 Baseline',
-        'methane': 'CH4 Practice',
+        'baseline_methane_adjusted': 'CH4 Baseline',
+        'methane_adjusted': 'CH4 Practice',
         'Delta Methane': 'Delta'
     }, inplace=True)
-    # create_table(doc, methane_data.values, ['Field', 'CH4 Baseline', 'CH4 Practice', 'Delta'], title='Methane Emissions')
-    # doc.add_paragraph()
-    # Summarize the total Methane
+ 
     total_delta_methane = methane_data['Delta'].sum()
-    # para = doc.add_paragraph()
-    # run = para.add_run(f"Total Methane Reductions: {total_delta_methane:.3f} tonnes CO2e")
-    # run.italic = True
-
+  
     #Emission Factors 
-    group['Delta Field Emissions'] = calculate_delta(group, 'field_baseline_emissions_demands_fossil', 'field_practice_emissions_demands_fossil')
+    group['Delta Field Emissions'] = calculate_delta(group, 'field_baseline_emissions', 'field_practice_emissions')
     # Emissions section
-    emissions_data = group[['Field Name (MRV)', 'field_baseline_emissions_demands_fossil', 'field_practice_emissions_demands_fossil', 'Delta Field Emissions']].copy()
+    emissions_data = group[['Field Name (MRV)', 'field_baseline_emissions', 'field_practice_emissions', 'Delta Field Emissions']].copy()
     emissions_data.rename(columns={
         'Field Name (MRV)': 'Field',
-        'field_baseline_emissions_demands_fossil': 'Emissions Demands Baseline',
-        'field_practice_emissions_demands_fossil': 'Emissions Demands Practice',
+        'field_baseline_emissions': 'Emissions Demands Baseline',
+        'field_practice_emissions': 'Emissions Demands Practice',
         'Delta Field Emissions': 'Delta'
     }, inplace=True)
-    # create_table(doc, emissions_data.values, ['Field', 'Emissions Demands Baseline', 'Emissions Demands Practice', 'Delta'], title='Emissions Demands')
-    # doc.add_paragraph()
+
     # Summarize the total Emissions
     total_delta_emissions = emissions_data['Delta'].sum()
     # convert kg to CO23
     total_delta_emissions = total_delta_emissions * 0.001
-    # para = doc.add_paragraph()
-    # doc.add_paragraph("Derived from ecoinvent3.8 cutoff emission factors for upstream and on-field process emissions.")
-    # run = para.add_run(f"Total Emissions Demands Reductions: {total_delta_emissions:.3f} kg CO2e")
-    # run.italic = True
-
-    # Removals section
-    #doc.add_heading('Removals', level=1)
-    #doc.add_paragraph("This section shows the carbon removal from the intervention as modeled by the DNDC.")
-    #create_table(doc, removals_data.values, ['Field', 'Baseline DSOC', 'DSOC', 'Removed'], title='Total Removals')
-    #doc.add_paragraph()
-    #para = doc.add_paragraph()
-    #run = para.add_run(f"Total Removals: {total_removals:.3f} tonnes CO2e")
-    #run.italic = True
-
+ 
     ### IMPACT TABLE 
     table = doc.add_table(rows=8, cols=2)
     table.style = 'Table Grid'
-    headers = ['Impact Breakdown', 'DELTA mtCO2e']
-    # Insert column headers and bold them
+
+
+    # Define the headers
+    headers = ['Impact Breakdown', 'Change between Baseline and practice years (mtCO2e)']
+
+    # Insert column headers and format them
     for i, header in enumerate(headers):
         cell = table.cell(0, i)
         cell.text = header
-        cell.paragraphs[0].runs[0].font.bold = True
+        run = cell.paragraphs[0].runs[0]
+        run.font.name = font_name
+        run.font.size = font_size
+        run.font.color.rgb = font_color
+        if i == 0:
+            run.font.bold = True
+        else:
+            run.font.italic = True
         cell.paragraphs[0].alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+
 
     # Define the rows under "Impact Breakdown"
     impact_breakdown = [
         "Greenhouse Gas Emissions Reductions",
-        "   N2O Indirect",
-        "   N2O Direct",
-        "   Methane",
-        "   Supply Chain and Operational Emissions",
+        "       N2O Indirect",
+        "       N2O Direct",
+        "       Methane",
+        "       Supply Chain and Operational Emissions",
         "Total Soil Carbon Removals",
         "Total Carbon Impact (Reductions + Removals)"
         ]
@@ -526,13 +569,68 @@ for producer, group in data.groupby('Producer (Project)'):
     for row in range(1, 8):  # Start from 1 to leave the header row as is
         impact_cell = table.cell(row, 0)
         delta_cell = table.cell(row, 1)
-        
-        impact_cell.text = impact_breakdown[row - 1]
-        delta_cell.text = str(delta_values[row - 1])  # Convert numerical values to string
+
+        impact_run = impact_cell.paragraphs[0].add_run(impact_breakdown[row - 1])
+        delta_run = delta_cell.paragraphs[0].add_run(str(delta_values[row - 1]))
+
+        # Apply standard font settings to impact breakdown cell
+        impact_run.font.name = font_name
+        impact_run.font.size = font_size
+        impact_run.font.color.rgb = font_color
+
+        # Apply standard font settings to delta value cell
+        delta_run.font.name = font_name
+        delta_run.font.size = font_size
+        delta_run.font.color.rgb = font_color
 
         # Check if the impact breakdown should be bold
         if impact_breakdown[row - 1] in bold_values:
-            impact_cell.paragraphs[0].runs[0].font.bold = True
+            impact_run.font.bold = True
+
+    ## Fields 
+    para = doc.add_heading()
+    run = para.add_run(f"Fields Results")
+    run_font = run.font
+    run_font.name = 'Calibri'
+    run_font.size = Pt(14)
+    run_font.underline = WD_UNDERLINE.SINGLE
+    run_font.color.rgb = RGBColor(112, 173, 71)
+
+    # REDUCTIONS 
+    para = doc.add_heading()
+    run = para.add_run(f"Reductions")
+    run_font = run.font
+    run_font.name = 'Calibri'
+    run_font.size = Pt(12)
+
+    doc.add_paragraph()
+    total_reductions = reductions_data['reduced_adjusted'].sum()
+    para = doc.add_paragraph()
+    run = para.add_run(f"Total Reductions: {total_reductions:.3f} tonnes CO2e")
+    run.italic = True
+
+    doc.add_paragraph("This section shows the GHG emissions reductions from the intervention(s) per field. Total reductions include the following emissions: direct nitrogen, methane and supply chain & operational emissions. ")
+    
+    # Example for Total Reductions
+    reductions_data = group[['Field Name (MRV)', 'reduced_adjusted']].copy()
+    reductions_data.rename(columns={'Field Name (MRV)': 'Field', 'reduced_adjusted': 'Total Reductions'}, inplace=True)
+    create_table(doc, reductions_data.values, ['Field', 'Total Reductions'], font_name, font_size, font_color)
+
+    # Direct Nitrogen (N2O) Emissions 
+    doc.add_paragraph()
+    para = doc.add_paragraph()
+    run = para.add_run("Direct Nitrogen (N2O) Emissions")
+    run.bold = True
+    run.font.name = 'Calibri'
+
+    doc.add_paragraph()
+    total_n2o_reductions = n2o_data['Delta'].sum()
+    para = doc.add_paragraph()
+    run = para.add_run(f"Total Direct N2O Reductions: {total_n2o_reductions:.3f} tonnes CO2e")
+    run.italic = True
+
+    # Direct n2o Table 
+    create_table(doc, n2o_data.values, ['Field', 'Direct N2O Baseline', 'Direct N2O Practice', 'Delta'], font_name, font_size, font_color)
 
     # Save the document
     safe_producer_name = producer.replace('/', '_').replace('\\', '_')
