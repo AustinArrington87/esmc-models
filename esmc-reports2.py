@@ -36,23 +36,6 @@ def format_cell_data(data):
         return data
 
 
-# Function to create and format a table in the Word document
-def create_table(document, data, column_names, title=None, note=None):
-    if title:
-        document.add_heading(title, level=1)
-    table = document.add_table(rows=1, cols=len(column_names))
-    for i, column in enumerate(column_names):
-        table.cell(0, i).text = column
-        table.cell(0, i).paragraphs[0].runs[0].font.bold = True  # Make header bold
-    for row_data in data:
-        row_cells = table.add_row().cells
-        for i, cell_data in enumerate(row_data):
-            row_cells[i].text = format_cell_data(cell_data)
-    if note:
-        para = document.add_paragraph()
-        run = para.add_run(note)
-        run.italic = True
-
 # functon for creating summary tables 
 def create_table(doc, data, headers, font_name, font_size, font_color):
     # Create a table with the specified data and headers
@@ -79,6 +62,7 @@ def create_table(doc, data, headers, font_name, font_size, font_color):
             run.font.name = font_name
             run.font.size = font_size
             run.font.color.rgb = font_color
+
 
 # Calculate Delta for N2O, Methane, Fossil Fuel, Pesticides, and Upstream Emissions
 def calculate_delta(group, baseline_column, practice_column):
@@ -501,8 +485,8 @@ for producer, group in data.groupby('Producer (Project)'):
     emissions_data = group[['Field Name (MRV)', 'field_baseline_emissions', 'field_practice_emissions', 'Delta Field Emissions']].copy()
     emissions_data.rename(columns={
         'Field Name (MRV)': 'Field',
-        'field_baseline_emissions': 'Emissions Demands Baseline',
-        'field_practice_emissions': 'Emissions Demands Practice',
+        'field_baseline_emissions': 'Supply Chain & Operational Emissions Baseline',
+        'field_practice_emissions': 'Supply Chain & Operational Emissions Practice',
         'Delta Field Emissions': 'Delta'
     }, inplace=True)
 
@@ -632,9 +616,50 @@ for producer, group in data.groupby('Producer (Project)'):
     # Direct n2o Table 
     create_table(doc, n2o_data.values, ['Field', 'Direct N2O Baseline', 'Direct N2O Practice', 'Delta'], font_name, font_size, font_color)
 
+
+    # Methane 
+
+    doc.add_paragraph()
+    para = doc.add_paragraph()
+    run = para.add_run("Methane (CH4) Emissions")
+    run.bold = True
+    run.font.name = 'Calibri'
+
+    doc.add_paragraph()
+    total_ch4_reductions = methane_data['Delta'].sum()
+    para = doc.add_paragraph()
+    run = para.add_run(f"Total CH4 Reductions: {total_ch4_reductions:.3f} tonnes CO2e")
+    run.italic = True
+
+    # methane table 
+    create_table(doc, methane_data.values, ['Field', 'CH4 Baseline', 'CH4 Practice', 'Delta'], font_name, font_size, font_color)
+
     # Save the document
     safe_producer_name = producer.replace('/', '_').replace('\\', '_')
     doc_file_name = f"{safe_producer_name}.docx"
     doc.save(os.path.join(output_dir, doc_file_name))
+
+    # Supply chain 
+
+    doc.add_paragraph()
+    para = doc.add_paragraph()
+    run = para.add_run("Supply Chain and Operational Emissions")
+    run.bold = True
+    run.font.name = 'Calibri'
+
+    doc.add_paragraph()
+    total_emissions_reductions = emissions_data['Delta'].sum()
+    para = doc.add_paragraph()
+    run = para.add_run(f"Total Supply Chain and Operational Emissions: {total_delta_emissions:.3f} tonnes CO2e")
+    run.italic = True
+
+    # emissions table 
+    create_table(doc, emissions_data.values, ['Field', 'Supply Chain & Operational Emissions Baseline', 'Supply Chain & Operational Emissions Practice', 'Delta'], font_name, font_size, font_color)
+
+    # Save the document
+    safe_producer_name = producer.replace('/', '_').replace('\\', '_')
+    doc_file_name = f"{safe_producer_name}.docx"
+    doc.save(os.path.join(output_dir, doc_file_name))
+
 
 print("Reports generated successfully.")
