@@ -1,3 +1,5 @@
+# An automated report generator developed by Austin Arrington for Ecosystem Services Market Consortium (ESMC)
+
 import pandas as pd
 from docx import Document
 from docx.shared import Inches, Pt
