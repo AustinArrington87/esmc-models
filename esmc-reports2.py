@@ -686,6 +686,40 @@ for producer, group in data.groupby('Producer (Project)'):
 
     create_table(doc, removals_data.values, ['Field', 'Removals Baseline', 'Removals Practice', 'Delta'], font_name, font_size, font_color)
 
+    # PAYMENT 
+    para = doc.add_heading()
+    run = para.add_run(f"Payment Structure")
+    run_font = run.font
+    run_font.name = 'Calibri'
+    run_font.size = Pt(12)
+
+    doc.add_paragraph("Producers in this project received a payment of $X/acre OR $X/impact. ")
+
+    doc.add_picture('diagram.png')
+    italic_paragraph = doc.add_paragraph()
+    italic_run = italic_paragraph.add_run('Figure 1: Total impact is the combined value of GHG emissions reductions and soil carbon stored. This diagram illustrates a general improvement from the baseline to project year – GHG emissions decrease and soil carbon increases.')
+    italic_run.italic = True
+    italic_run.font_name = 'Calibri'
+    italic_run.font.size = Pt(11)
+
+    doc.add_paragraph()
+    para = doc.add_paragraph()
+    run = para.add_run("Real-world Comparisons")
+    run.bold = True
+    run.font.name = 'Calibri'
+
+    # Add another run for "Producer-1" without bold
+    summary_para5 = doc.add_paragraph()
+    run_regular = summary_para5.add_run("Use ")
+    run_regular.font.bold = False  # Not necessary as False is the default
+    run_regular.font.name = 'Calibri'
+    run_regular.font.size = Pt(12)
+    run_regular.font.color.rgb = RGBColor(0, 0, 0)
+    add_hyperlink(summary_para5, 'this tool', 'https://www.epa.gov/energy/greenhouse-gas-equivalencies-calculator#resultsg')
+    run_regular = summary_para5.add_run(" to compare carbon impacts to everyday examples.")
+    run_regular.font.bold = False  # Not necessary as False is the default
+    run_regular.font.name = 'Calibri'
+    run_regular.font.size = Pt(12)
 
     # Save the document
     safe_producer_name = producer.replace('/', '_').replace('\\', '_')
