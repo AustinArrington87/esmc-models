@@ -9,7 +9,7 @@ from docx.oxml.ns import qn
 import os
 
 # Load the data
-year = "2021"
+year = "2023"
 batch = "Verified"
 file_path = year+'_'+batch+'_Adjusted.csv'
 data = pd.read_csv(file_path)
@@ -622,6 +622,23 @@ for producer, group in data.groupby('Producer (Project)'):
     # Direct n2o Table 
     create_table(doc, n2o_data.values, ['Field', 'Direct N2O Baseline', 'Direct N2O Practice', 'Delta'], font_name, font_size, font_color)
 
+
+    # Indirect N2O 
+
+    doc.add_paragraph()
+    para = doc.add_paragraph()
+    run = para.add_run("Indirect Nitrogen (N2O) Emissions")
+    run.bold = True
+    run.font.name = 'Calibri'
+
+    doc.add_paragraph()
+    total_indirectn2o_reductions = n2oindirect_data['Delta'].sum()
+    para = doc.add_paragraph()
+    run = para.add_run(f"Total Indirect N2O Reductions: {total_indirectn2o_reductions:.3f} tonnes CO2e")
+    run.italic = True
+
+    # Indirect n2o Table 
+    create_table(doc, n2oindirect_data.values, ['Field', 'Indirect N2O Baseline', 'Indirect N2O Practice', 'Delta'], font_name, font_size, font_color)
 
     # Methane 
 
