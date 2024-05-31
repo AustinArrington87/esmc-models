@@ -36,8 +36,9 @@ def format_cell_data(data):
         return data
 
 
-# functon for creating summary tables 
-def create_table(doc, data, headers, font_name, font_size, font_color):
+# functon for creating summary tables T
+
+def create_table(doc, data, headers, font_name, font_size, font_color, scale_emissions=False):
     # Create a table with the specified data and headers
     table = doc.add_table(rows=len(data) + 1, cols=len(headers))
     table.style = 'Table Grid'
@@ -55,13 +56,17 @@ def create_table(doc, data, headers, font_name, font_size, font_color):
     # Insert the data into the table
     for row_idx, row_data in enumerate(data, start=1):
         for col_idx, cell_data in enumerate(row_data):
-            cell = table.cell(row_idx, col_idx)
+            if scale_emissions and isinstance(cell_data, (int, float)):
+                cell_data *= 0.001  # Scale the data if required
+            
             if isinstance(cell_data, float):
                 cell_data = f"{cell_data:.3f}"  # Truncate to 3 decimal places
+            cell = table.cell(row_idx, col_idx)
             run = cell.paragraphs[0].add_run(str(cell_data))
             run.font.name = font_name
             run.font.size = font_size
             run.font.color.rgb = font_color
+            cell.paragraphs[0].alignment = WD_PARAGRAPH_ALIGNMENT.CENTER  # Aligning the cell content to center
 
 
 # Calculate Delta for N2O, Methane, Fossil Fuel, Pesticides, and Upstream Emissions
@@ -264,6 +269,7 @@ for producer, group in data.groupby('Producer (Project)'):
     # Removals section load 
     removals_data = group[['Field Name (MRV)', 'baseline_dsoc', 'dsoc', 'removed']].copy()
     removals_data.rename(columns={'Field Name (MRV)': 'Field', 'removed': 'Removed'}, inplace=True)
+
     total_removals = removals_data['Removed'].sum()
     total_carbon_g = total_reductions + total_removals
 
@@ -587,13 +593,13 @@ for producer, group in data.groupby('Producer (Project)'):
     run_font.name = 'Calibri'
     run_font.size = Pt(12)
 
+    doc.add_paragraph("This section shows the GHG emissions reductions from the intervention(s) per field. Total reductions include the following emissions: direct nitrogen, methane and supply chain & operational emissions. ")
+
     doc.add_paragraph()
     total_reductions = reductions_data['reduced_adjusted'].sum()
     para = doc.add_paragraph()
     run = para.add_run(f"Total Reductions: {total_reductions:.3f} tonnes CO2e")
     run.italic = True
-
-    doc.add_paragraph("This section shows the GHG emissions reductions from the intervention(s) per field. Total reductions include the following emissions: direct nitrogen, methane and supply chain & operational emissions. ")
     
     # Example for Total Reductions
     reductions_data = group[['Field Name (MRV)', 'reduced_adjusted']].copy()
@@ -654,7 +660,32 @@ for producer, group in data.groupby('Producer (Project)'):
     run.italic = True
 
     # emissions table 
-    create_table(doc, emissions_data.values, ['Field', 'Supply Chain & Operational Emissions Baseline', 'Supply Chain & Operational Emissions Practice', 'Delta'], font_name, font_size, font_color)
+    create_table(doc, emissions_data.values, ['Field', 'Supply Chain & Operational Emissions Baseline', 'Supply Chain & Operational Emissions Practice', 'Delta'], font_name, font_size, font_color, scale_emissions=True)
+
+    # REMOVALS
+    para = doc.add_heading()
+    run = para.add_run(f"Removals")
+    run_font = run.font
+    run_font.name = 'Calibri'
+    run_font.size = Pt(12)
+
+    doc.add_paragraph("This section shows the modeled carbon removals per field from the intervention(s).  ")
+
+    doc.add_paragraph()
+    para = doc.add_paragraph()
+    run = para.add_run(f"Total Reductions: {total_removals:.3f} tonnes CO2e")
+    run.italic = True
+
+    # removals table
+
+    removals_data.rename(columns={
+        'baseline_dsoc': 'Removals Baseline',
+        'dsoc': 'Removals Practice',
+        'Removed': 'Delta'
+        }, inplace=True)
+
+    create_table(doc, removals_data.values, ['Field', 'Removals Baseline', 'Removals Practice', 'Delta'], font_name, font_size, font_color)
+
 
     # Save the document
     safe_producer_name = producer.replace('/', '_').replace('\\', '_')
