@@ -8,6 +8,12 @@ data = pd.read_csv(file_path)
 # Define the practice change categories
 categories = ['Nutrient management', 'Normal operation', 'Tillage reduction', 'Cover cropping']
 
+# IDs to ignore
+ignore_ids = ['660c5916-ab5a-4701-8e6a-e0696295522a', '97b1a2e6-fd28-4d18-b0e5-f02d391691e2']
+
+# Filter out rows with the specified IDs
+data = data[~data['id'].isin(ignore_ids)]
+
 # Create a new Word document
 doc = Document()
 
