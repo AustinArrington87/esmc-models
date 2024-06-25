@@ -89,7 +89,7 @@ def initialize_document():
     header = section.header
     header_para = header.paragraphs[0]
     run = header_para.add_run()
-    run.add_picture('header.png', width=Inches(11))
+    run.add_picture('header.png', width=Inches(6))
     return doc
 
 def generate_report(data, batch, doc):
