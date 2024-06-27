@@ -218,6 +218,33 @@ def generate_report(data, batch, doc):
         run_regular.font.color.rgb = RGBColor(0, 0, 0)
         add_hyperlink(summary_para6, 'support@ecoharvest.ag', 'http://www.ecoharvest.ag')
 
+        # Payment logic
+        specific_projects_16 = [
+            "AGI SGP Market", "AGI SGP Pipeline", "NACD SGP Market",
+            "Northern Plains Cropping", "NACD NGP Market", "NACD NGP Pipeline"
+        ]
+        specific_projects_20 = ["TNC Minnesota", "TNC Nebraska"]
+
+        payment_amount = 0
+        payment_message = "Producers in this project received a payment of $X/acre OR $X/impact."
+
+        if project in specific_projects_16:
+            payment_amount = 16 * total_carbon_g
+            if payment_amount < 0:
+                payment_message = "These fields did not accrue enough impact for payment this growing season."
+            else:
+                payment_message = f"Producers in this project received a payment of $16/outcome. You will be paid ${payment_amount:.2f}."
+        elif project in specific_projects_20:
+            payment_amount = 20 * fields_data['Acres'].sum()
+            if payment_amount < 0:
+                payment_message = "These fields did not accrue enough impact for payment this growing season."
+            else:
+                payment_message = f"Producers in this project received a payment of $20/acre. You will be paid ${payment_amount:.2f}."
+
+        document.add_paragraph(payment_message)
+
+        # soil sampling data 
+
         document.add_heading("Soil Sampling Results", level=2)
         soil_bullet_points = [
             "SOC – The percentage of soil that is organic carbon.  2-6% is optimal.",
@@ -405,7 +432,7 @@ def generate_report(data, batch, doc):
         run_font.name = 'Calibri'
         run_font.size = Pt(12)
 
-        document.add_paragraph("Producers in this project received a payment of $X/acre OR $X/impact.")
+        document.add_paragraph(payment_message)
 
         document.add_picture('diagram.png')
         italic_paragraph = document.add_paragraph()
