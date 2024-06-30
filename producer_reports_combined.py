@@ -8,6 +8,9 @@ from docx.shared import RGBColor
 from docx.oxml.ns import qn
 import os
 
+# year genearating reports for
+run_year = "2023"
+
 def load_data(year, batch):
     file_path = f"{year}_{batch}.csv" if batch == "Quantified" else f"{year}_{batch}.csv"
     return pd.read_csv(file_path)
@@ -143,7 +146,7 @@ def generate_report(data, batch, doc):
         run_bold.font.name = 'Calibri'
         run_bold.font.size = Pt(12)
         run_bold.font.color.rgb = RGBColor(0, 0, 0)
-        run_regular = summary_para3.add_run('2022')
+        run_regular = summary_para3.add_run(run_year)
         run_regular.font.name = 'Calibri'
         run_regular.font.size = Pt(12)
         run_regular.font.color.rgb = RGBColor(0, 0, 0)
@@ -461,8 +464,8 @@ def generate_report(data, batch, doc):
     return doc.producers
 
 # Load data
-verified_data = load_data("2022", "Verified")
-quantified_data = load_data("2022", "Quantified")
+verified_data = load_data(run_year, "Verified")
+quantified_data = load_data(run_year, "Quantified")
 
 # Initialize document dictionary
 class DocumentHolder:
