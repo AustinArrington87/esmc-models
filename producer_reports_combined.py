@@ -10,6 +10,9 @@ import os
 
 # year genearating reports for
 run_year = "2023"
+# used for mapping anonymized prooducer name 
+mapping_df = pd.read_csv('Mapping.csv')
+producer_mapping = dict(zip(mapping_df['project_producer'], mapping_df['display_name']))
 
 def load_data(year, batch):
     file_path = f"{year}_{batch}.csv" if batch == "Quantified" else f"{year}_{batch}.csv"
@@ -124,7 +127,11 @@ def generate_report(data, batch, doc):
         run_bold.font.name = 'Calibri'
         run_bold.font.size = Pt(12)
         run_bold.font.color.rgb = RGBColor(0, 0, 0)
-        run_regular = summary_para1.add_run(producer)
+        try:
+            display_name = producer_mapping.get(producer, producer)
+            run_regular = summary_para1.add_run(f"{display_name} ({producer})")
+        except:
+            run_regular = summary_para1.add_run(producer)
         run_regular.font.name = 'Calibri'
         run_regular.font.size = Pt(12)
         run_regular.font.color.rgb = RGBColor(0, 0, 0)
@@ -484,8 +491,15 @@ if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
 for producer, document in doc.producers.items():
-    safe_producer_name = producer.replace('/', '_').replace('\\', '_')
-    doc_file_name = f"{safe_producer_name}.docx"
+    display_name = producer_mapping.get(producer, producer)  # Ensure you get the display name for each producer
+    try:
+        safe_producer_name = producer.replace('/', '_').replace('\\', '_')
+        safe_display_name = display_name.replace('/', '_').replace('\\', '_')
+        doc_file_name = f"{safe_display_name} ({safe_producer_name}).docx"
+    except:
+        safe_producer_name = producer.replace('/', '_').replace('\\', '_')
+        doc_file_name = f"{safe_producer_name}.docx"
     document.save(os.path.join(output_dir, doc_file_name))
+
 
 print("Reports generated successfully.")
