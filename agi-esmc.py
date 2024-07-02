@@ -78,6 +78,7 @@ for partner_grower_id, enrollments in enrollments_by_grower.items():
             "grower_id": enrollment["grower_id"],
             "partner_grower_name": enrollment["partner_grower_name"],
             "partner_field_id": enrollment["partner_field_id"],
+            "field_name": enrollment["partner_field_name"],
             "field_events_summary": enrollment.get("field_events_summary", {}),
             "field_events": cpfrs
         }
