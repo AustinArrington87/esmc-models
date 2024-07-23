@@ -56,7 +56,7 @@ class Process:
             # Baseline
             # Retrieve dsoc and directn2o distributions
             # Retrieve indirectn2o and ch4 values
-            # Generate dsco and directn2o aggregated distributions
+            # Generate dsoc and directn2o aggregated distributions
             self.dsocBaselineDistributions[field] = dndcJson['data']['session_uncertainties'][field]['scenarios_uncertainties']['baseline']['dsoc']['distribution']
             if self.dsocAggregatedBaselineDistribution:
                 self.dsocAggregatedBaselineDistribution = [x + y for x, y in zip(self.dsocAggregatedBaselineDistribution, self.dsocBaselineDistributions[field])]
@@ -71,7 +71,7 @@ class Process:
             # Practice change
             # Retrieve dsoc and directn2o distributions
             # Retrieve indirectn2o and ch4 values
-            # Generate dsco and directn2o aggregated distributions
+            # Generate dsoc and directn2o aggregated distributions
             self.dsocPracticeDistributions[field] = dndcJson['data']['session_uncertainties'][field]['scenarios_uncertainties']['practice_change']['dsoc']['distribution']
             if self.dsocAggregatedPracticeDistribution:
                 self.dsocAggregatedPracticeDistribution = [x + y for x, y in zip(self.dsocAggregatedPracticeDistribution, self.dsocPracticeDistributions[field])]
