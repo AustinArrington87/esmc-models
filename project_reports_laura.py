@@ -155,10 +155,10 @@ def generate_project_report(data, batch, doc):
         run_regular.font.color.rgb = RGBColor(0, 0, 0)
 
         # load data 
-
         fields_data = group[['Field Name (MRV)', 'Acres', 'Commodity', 'Producer (Project)', 'Practice Change']].copy()
         fields_data.rename(columns={'Field Name (MRV)': 'Field'}, inplace=True)
-        
+
+        # Calculate totals
         total_acres = fields_data['Acres'].sum()
         total_producers = fields_data['Producer (Project)'].nunique()
         total_fields = fields_data['Field'].nunique()
@@ -167,21 +167,39 @@ def generate_project_report(data, batch, doc):
         total_practices = list(set(fields_data['Practice Change']))
         total_practices = [x for x in total_practices if str(x) != 'nan']
 
-        reductions_data = group[['Field Name (MRV)', 'reduced' if batch == "Quantified" else 'reduced_adjusted']].copy()
-        reductions_data.rename(columns={'Field Name (MRV)': 'Field'}, inplace=True)
-        total_reductions = reductions_data[reductions_data.columns[1]].sum()
+        # Reductions data
+        reductions_data = group[['Field Name (MRV)', 'Practice Change', 'reduced' if batch == "Quantified" else 'reduced_adjusted']].copy()
+        reductions_data.rename(columns={'Field Name (MRV)': 'Field', 'Practice Change': 'Practice_Change'}, inplace=True)
+        reductions_data[reductions_data.columns[2]] = pd.to_numeric(reductions_data[reductions_data.columns[2]], errors='coerce')
+        total_reductions = reductions_data[reductions_data.columns[2]].sum()
 
-        removals_data = group[['Field Name (MRV)', 'baseline_dsoc', 'dsoc', 'removed']].copy()
-        removals_data.rename(columns={'Field Name (MRV)': 'Field', 'removed': 'Removed'}, inplace=True)
+        # Removals data
+        removals_data = group[['Field Name (MRV)', 'Practice Change', 'baseline_dsoc', 'dsoc', 'removed']].copy()
+        removals_data.rename(columns={'Field Name (MRV)': 'Field', 'Practice Change': 'Practice_Change', 'removed': 'Removed'}, inplace=True)
+        removals_data['Removed'] = pd.to_numeric(removals_data['Removed'], errors='coerce')
         total_removals = removals_data['Removed'].sum()
-        total_carbon_g = total_reductions + total_removals
+        total_carbon_g = float(total_reductions) + float(total_removals)
 
         # Calculate mean and standard deviation
-        mean_reductions = reductions_data[reductions_data.columns[1]].mean()
-        std_reductions = reductions_data[reductions_data.columns[1]].std()
+        mean_reductions = reductions_data[reductions_data.columns[2]].mean()
+        std_reductions = reductions_data[reductions_data.columns[2]].std()
 
         mean_removals = removals_data['Removed'].mean()
         std_removals = removals_data['Removed'].std()
+
+        # Aggregate outcomes by practice change
+        practice_stats = []
+        for practice in total_practices:
+            practice_reductions = reductions_data[reductions_data['Practice_Change'] == practice]
+            practice_removals = removals_data[removals_data['Practice_Change'] == practice]
+
+            mean_reductions = practice_reductions[practice_reductions.columns[2]].mean()
+            std_reductions = practice_reductions[practice_reductions.columns[2]].std()
+
+            mean_removals = practice_removals['Removed'].mean()
+            std_removals = practice_removals['Removed'].std()
+
+            practice_stats.append((practice, mean_reductions, std_reductions, mean_removals, std_removals))
 
         #Producers
         summary_para4 = document.add_paragraph()
@@ -418,113 +436,27 @@ def generate_project_report(data, batch, doc):
         # Create table with Mean and Standard Deviation
         create_table(document, stats_table_data, ['Outcome', 'Mean (mtCO2e)', 'Standard Deviation (mtCO2e)'], font_name, font_size, font_color)
 
+        summary_para10 = document.add_paragraph()
+        run_regular = summary_para10.add_run("By practice change(s) implemented:")
+        run_regular.font.name = 'Calibri'
+        run_regular.font.size = Pt(12)
+        run_regular.font.color.rgb = RGBColor(0, 0, 0)
+        run_regular.italic = True
 
+        # Prepare practice change stats table data
+        stats_table_data = [
+            (practice, mean_reductions, std_reductions, mean_removals, std_removals)
+            for practice, mean_reductions, std_reductions, mean_removals, std_removals in practice_stats
+        ]
+
+        # Create table with Mean and Standard Deviation segmented by practice change
+        create_table(document, stats_table_data, ['Practice Change', 'Mean Reductions (mtCO2e)', 'Std Dev Reductions (mtCO2e)', 'Mean Removals (mtCO2e)', 'Std Dev Removals (mtCO2e)'], font_name, font_size, font_color)
+
+        # Table Segmented by Crops 
+
+        
         ######## 
 
-
-        para = document.add_heading()
-        run = para.add_run(f"Fields Results")
-        run_font = run.font
-        run_font.name = 'Calibri'
-        run_font.size = Pt(14)
-        run_font.underline = WD_UNDERLINE.SINGLE
-        run_font.color.rgb = RGBColor(112, 173, 71)
-
-        para = document.add_heading()
-        run = para.add_run(f"Reductions")
-        run_font = run.font
-        run_font.name = 'Calibri'
-        run_font.size = Pt(12)
-
-        document.add_paragraph("This section shows the GHG emissions reductions from the intervention(s) per field. Total reductions include the following emissions: direct nitrogen, methane and supply chain & operational emissions.")
-
-        document.add_paragraph()
-        total_reductions = reductions_data[reductions_data.columns[1]].sum()
-        para = document.add_paragraph()
-        run = para.add_run(f"Total Reductions: {total_reductions:.3f} tonnes CO2e")
-        run.italic = True
-
-        create_table(document, reductions_data.values, ['Field', 'Total Reductions'], font_name, font_size, font_color)
-
-        document.add_paragraph()
-        para = document.add_paragraph()
-        run = para.add_run("Direct Nitrogen (N2O) Emissions")
-        run.bold = True
-        run.font.name = 'Calibri'
-
-        document.add_paragraph()
-        total_n2o_reductions = n2o_data['Delta'].sum()
-        para = document.add_paragraph()
-        run = para.add_run(f"Total Direct N2O Reductions: {total_n2o_reductions:.3f} tonnes CO2e")
-        run.italic = True
-
-        create_table(document, n2o_data.values, ['Field', 'Direct N2O Baseline', 'Direct N2O Practice', 'Delta'], font_name, font_size, font_color)
-
-        document.add_paragraph()
-        para = document.add_paragraph()
-        run = para.add_run("Indirect Nitrogen (N2O) Emissions")
-        run.bold = True
-        run.font.name = 'Calibri'
-
-        document.add_paragraph()
-        total_indirectn2o_reductions = n2oindirect_data['Delta'].sum()
-        para = document.add_paragraph()
-        run = para.add_run(f"Total Indirect N2O Reductions: {total_indirectn2o_reductions:.3f} tonnes CO2e")
-        run.italic = True
-
-        create_table(document, n2oindirect_data.values, ['Field', 'Indirect N2O Baseline', 'Indirect N2O Practice', 'Delta'], font_name, font_size, font_color)
-
-        document.add_paragraph()
-        para = document.add_paragraph()
-        run = para.add_run("Methane (CH4) Emissions")
-        run.bold = True
-        run.font.name = 'Calibri'
-
-        document.add_paragraph()
-        total_ch4_reductions = methane_data['Delta'].sum()
-        para = document.add_paragraph()
-        run = para.add_run(f"Total CH4 Reductions: {total_ch4_reductions:.3f} tonnes CO2e")
-        run.italic = True
-
-        create_table(document, methane_data.values, ['Field', 'CH4 Baseline', 'CH4 Practice', 'Delta'], font_name, font_size, font_color)
-
-        document.add_paragraph()
-        para = document.add_paragraph()
-        run = para.add_run("Supply Chain and Operational Emissions")
-        run.bold = True
-        run.font.name = 'Calibri'
-
-        document.add_paragraph()
-        total_emissions_reductions = emissions_data['Delta'].sum()
-        para = document.add_paragraph()
-        run = para.add_run(f"Total Supply Chain and Operational Emissions: {total_delta_emissions:.3f} tonnes CO2e")
-        run.italic = True
-
-        create_table(document, emissions_data.values, ['Field', 'Supply Chain & Operational Emissions Baseline', 'Supply Chain & Operational Emissions Practice', 'Delta'], font_name, font_size, font_color, scale_emissions=True)
-
-        para = document.add_heading()
-        run = para.add_run(f"Removals")
-        run_font = run.font
-        run_font.name = 'Calibri'
-        run_font.size = Pt(12)
-
-        document.add_paragraph("This section shows the modeled carbon removals per field from the intervention(s).")
-
-        document.add_paragraph()
-        para = document.add_paragraph()
-        run = para.add_run(f"Total Removals: {total_removals:.3f} tonnes CO2e")
-        run.italic = True
-
-        removals_data.rename(columns={'baseline_dsoc': 'Removals Baseline', 'dsoc': 'Removals Practice', 'Removed': 'Delta'}, inplace=True)
-        create_table(document, removals_data.values, ['Field', 'Removals Baseline', 'Removals Practice', 'Delta'], font_name, font_size, font_color)
-
-        para = document.add_heading()
-        run = para.add_run(f"Payment Structure")
-        run_font = run.font
-        run_font.name = 'Calibri'
-        run_font.size = Pt(12)
-
-        document.add_paragraph(payment_message)
 
         document.add_picture('diagram.png')
         italic_paragraph = document.add_paragraph()
