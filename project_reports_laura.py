@@ -201,6 +201,7 @@ def generate_project_report(data, batch, doc):
 
             practice_stats.append((practice, mean_reductions, std_reductions, mean_removals, std_removals))
 
+
         #Producers
         summary_para4 = document.add_paragraph()
         run_bold = summary_para4.add_run('Producers: ')
@@ -241,16 +242,16 @@ def generate_project_report(data, batch, doc):
         run_regular.font.color.rgb = RGBColor(0, 0, 0)
 
         #Crops 
-        total_crops = str(total_crops)
-        total_crops = total_crops.replace('[','')
-        total_crops = total_crops.replace(']','')
+        total_crops_str = str(total_crops)
+        total_crops_updated = total_crops_str.replace('[','')
+        total_crops_updated = total_crops_updated.replace(']','')
         summary_para7 = document.add_paragraph()
         run_bold = summary_para7.add_run('Crop(s): ')
         run_bold.font.bold = True
         run_bold.font.name = 'Calibri'
         run_bold.font.size = Pt(12)
         run_bold.font.color.rgb = RGBColor(0, 0, 0)
-        run_regular = summary_para7.add_run(total_crops)
+        run_regular = summary_para7.add_run(total_crops_updated)
         run_regular.font.name = 'Calibri'
         run_regular.font.size = Pt(12)
         run_regular.font.color.rgb = RGBColor(0, 0, 0)
@@ -452,9 +453,55 @@ def generate_project_report(data, batch, doc):
         # Create table with Mean and Standard Deviation segmented by practice change
         create_table(document, stats_table_data, ['Practice Change', 'Mean Reductions (mtCO2e)', 'Std Dev Reductions (mtCO2e)', 'Mean Removals (mtCO2e)', 'Std Dev Removals (mtCO2e)'], font_name, font_size, font_color)
 
-        # Table Segmented by Crops 
+        # Table Segmented by Crops
 
-        
+        # Reductions data
+        reductions_data = group[['Field Name (MRV)', 'Commodity', 'reduced' if batch == "Quantified" else 'reduced_adjusted']].copy()
+        reductions_data.rename(columns={'Field Name (MRV)': 'Field'}, inplace=True)
+        reductions_data[reductions_data.columns[2]] = pd.to_numeric(reductions_data[reductions_data.columns[2]], errors='coerce')
+        total_reductions = reductions_data[reductions_data.columns[2]].sum()
+
+        # Removals data
+        removals_data = group[['Field Name (MRV)', 'Commodity', 'baseline_dsoc', 'dsoc', 'removed']].copy()
+        removals_data.rename(columns={'Field Name (MRV)': 'Field', 'removed': 'Removed'}, inplace=True)
+        removals_data['Removed'] = pd.to_numeric(removals_data['Removed'], errors='coerce')
+        total_removals = removals_data['Removed'].sum()
+        total_carbon_g = float(total_reductions) + float(total_removals)
+
+        # Ensure commodity column is treated as string
+        reductions_data['Commodity'] = reductions_data['Commodity'].astype(str)
+        removals_data['Commodity'] = removals_data['Commodity'].astype(str)
+
+        # Aggregate outcomes by practice change
+        commodity_stats = []
+        for commodity in total_crops:
+            commodity_reductions = reductions_data[reductions_data['Commodity'] == commodity]
+            commodity_removals = removals_data[removals_data['Commodity'] == commodity]
+
+            mean_reductions = commodity_reductions[commodity_reductions.columns[2]].mean()
+            std_reductions = commodity_reductions[commodity_reductions.columns[2]].std()
+
+            mean_removals = commodity_removals['Removed'].mean()
+            std_removals = commodity_removals['Removed'].std()
+
+            commodity_stats.append((commodity, mean_reductions, std_reductions, mean_removals, std_removals))
+
+        summary_para10 = document.add_paragraph()
+        run_regular = summary_para10.add_run("By crop(s) planted:")
+        run_regular.font.name = 'Calibri'
+        run_regular.font.size = Pt(12)
+        run_regular.font.color.rgb = RGBColor(0, 0, 0)
+        run_regular.italic = True
+
+        # Prepare practice change stats table data
+        stats_table_data = [
+            (commodity, mean_reductions, std_reductions, mean_removals, std_removals)
+            for commodity, mean_reductions, std_reductions, mean_removals, std_removals in commodity_stats
+        ]
+
+        # Create table with Mean and Standard Deviation segmented by practice change
+        create_table(document, stats_table_data, ['Commodity Crop', 'Mean Reductions (mtCO2e)', 'Std Dev Reductions (mtCO2e)', 'Mean Removals (mtCO2e)', 'Std Dev Removals (mtCO2e)'], font_name, font_size, font_color)
+
         ######## 
 
 
