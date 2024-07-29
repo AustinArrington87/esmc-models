@@ -510,4 +510,3 @@ for project, document in doc.projects.items():
     document.save(os.path.join(output_dir, doc_file_name))
 
 print("Project reports generated successfully.")
-
