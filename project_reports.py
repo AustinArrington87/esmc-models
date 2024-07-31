@@ -66,6 +66,18 @@ def add_custom_bullet(doc, label, value):
     value_run.font.name = 'Calibri'
     value_run.font.size = Pt(12)
 
+def add_items_bulleted_list(document, practices):
+    for practice in practices:
+        paragraph = document.add_paragraph(style='List Bullet')
+        run = paragraph.add_run(practice)
+        run.font.name = 'Calibri'
+        run.font.size = Pt(12)
+        run.font.color.rgb = RGBColor(0, 0, 0)
+        # Indent the paragraph
+        paragraph_format = paragraph.paragraph_format
+        paragraph_format.left_indent = Inches(0.5)
+
+
 def add_hyperlink(paragraph, text, url):
     part = paragraph.part
     r_id = part.relate_to(url, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink", is_external=True)
@@ -142,6 +154,7 @@ def generate_project_report(data, batch, doc):
         run_regular.font.size = Pt(12)
         run_regular.font.color.rgb = RGBColor(0, 0, 0)
 
+        #Batch
         summary_para3 = document.add_paragraph()
         run_bold = summary_para3.add_run('Batch: ')
         run_bold.font.bold = True
@@ -153,69 +166,102 @@ def generate_project_report(data, batch, doc):
         run_regular.font.size = Pt(12)
         run_regular.font.color.rgb = RGBColor(0, 0, 0)
 
-        para = document.add_heading()
-        run = para.add_run(f"Project Results")
-        run_font = run.font
-        run_font.name = 'Calibri'
-        run_font.size = Pt(16)
-        run_font.underline = WD_UNDERLINE.SINGLE
-        run_font.color.rgb = RGBColor(0, 0, 0)
-
-        fields_data = group[['Field Name (MRV)', 'Acres', 'Commodity', 'Producer (Project)']].copy()
+        # load data 
+        fields_data = group[['Field Name (MRV)', 'Acres', 'Commodity', 'Producer (Project)', 'Practice Change']].copy()
         fields_data.rename(columns={'Field Name (MRV)': 'Field'}, inplace=True)
-        
+
+        # Calculate totals
         total_acres = fields_data['Acres'].sum()
         total_producers = fields_data['Producer (Project)'].nunique()
         total_fields = fields_data['Field'].nunique()
+        total_crops = list(set(fields_data['Commodity']))
+        total_crops = [x for x in total_crops if str(x) != 'nan']
+        total_practices = list(set(fields_data['Practice Change']))
+        total_practices = [x for x in total_practices if str(x) != 'nan']
 
-        reductions_data = group[['Field Name (MRV)', 'reduced' if batch == "Quantified" else 'reduced_adjusted']].copy()
-        reductions_data.rename(columns={'Field Name (MRV)': 'Field'}, inplace=True)
-        total_reductions = reductions_data[reductions_data.columns[1]].sum()
+        # Reductions data
+        reductions_data = group[['Field Name (MRV)', 'Practice Change', 'reduced' if batch == "Quantified" else 'reduced_adjusted']].copy()
+        reductions_data.rename(columns={'Field Name (MRV)': 'Field', 'Practice Change': 'Practice_Change'}, inplace=True)
+        reductions_data[reductions_data.columns[2]] = pd.to_numeric(reductions_data[reductions_data.columns[2]], errors='coerce')
+        total_reductions = reductions_data[reductions_data.columns[2]].sum()
 
-        removals_data = group[['Field Name (MRV)', 'baseline_dsoc', 'dsoc', 'removed']].copy()
-        removals_data.rename(columns={'Field Name (MRV)': 'Field', 'removed': 'Removed'}, inplace=True)
+        # Removals data
+        removals_data = group[['Field Name (MRV)', 'Practice Change', 'baseline_dsoc', 'dsoc', 'removed']].copy()
+        removals_data.rename(columns={'Field Name (MRV)': 'Field', 'Practice Change': 'Practice_Change', 'removed': 'Removed'}, inplace=True)
+        removals_data['Removed'] = pd.to_numeric(removals_data['Removed'], errors='coerce')
         total_removals = removals_data['Removed'].sum()
-        total_carbon_g = total_reductions + total_removals
+        total_carbon_g = float(total_reductions) + float(total_removals)
 
-        add_custom_bullet(document, "Total Carbon Impacts Generated: ", f"{total_carbon_g:.3f} metric tonnes of carbon dioxide equivalent (mtCO2e)")
-        add_custom_bullet(document, "Emission Reductions: ", f"Practice changes avoided {total_reductions:.3f} mtCO2e.")
-        add_custom_bullet(document, "Carbon Removals: ", f"Soils removed {total_removals:.3f} mtCO2e.")
-        add_custom_bullet(document, "Total Modeled Acres*: ", f"{total_acres:.3f}")
-        add_custom_bullet(document, "Number of Producers: ", f"{total_producers}")
-        add_custom_bullet(document, "Number of Fields: ", f"{total_fields}")
+        # Calculate mean and standard deviation
+        mean_reductions = reductions_data[reductions_data.columns[2]].mean()
+        std_reductions = reductions_data[reductions_data.columns[2]].std()
 
+        mean_removals = removals_data['Removed'].mean()
+        std_removals = removals_data['Removed'].std()
+
+        # Aggregate outcomes by practice change
+        practice_stats = []
+        for practice in total_practices:
+            practice_reductions = reductions_data[reductions_data['Practice_Change'] == practice]
+            practice_removals = removals_data[removals_data['Practice_Change'] == practice]
+
+            mean_reductions = practice_reductions[practice_reductions.columns[2]].mean()
+            std_reductions = practice_reductions[practice_reductions.columns[2]].std()
+
+            mean_removals = practice_removals['Removed'].mean()
+            std_removals = practice_removals['Removed'].std()
+
+            practice_stats.append((practice, mean_reductions, std_reductions, mean_removals, std_removals))
+
+
+        #Producers
         summary_para4 = document.add_paragraph()
-        run_regular = summary_para4.add_run("*ESMC requires complete historical data to generate a baseline, so fields with historical data gaps are not modeled.")
-        run_regular.font.name = 'Calibri'
-        run_regular.font.size = Pt(9)
-        run_regular.font.color.rgb = RGBColor(0, 0, 0)
-        para = document.add_heading()
-        run = para.add_run(f"Eco-Harvest: rewarding producers for regenerative ag")
-        run_font = run.font
-        run_font.name = 'Calibri'
-        run_font.size = Pt(16)
-        run_font.underline = WD_UNDERLINE.SINGLE
-        run_font.color.rgb = RGBColor(0, 0, 0)
-
-        add_custom_bullet(document, "Customizable practices: ", f"Choose how to implement regenerative practices.")
-        add_custom_bullet(document, "Fair Payments: ", f"As a non-profit, ESMC maximizes producer benefits.")
-        paragraph = document.add_paragraph()
-        paragraph.add_run("Many farmers experience a 15-25% return on investment after 3–5 years of ").bold = False
-        add_hyperlink(paragraph, 'regenerative farming', 'https://www.bcg.com/publications/2023/regenerative-agriculture-benefits-germany-beyond')
-        paragraph.add_run(".").bold = False
-        add_custom_bullet(document, "Weather-Ready Farming: ", f"Thank you for participating in the Eco-Harvest program. Continue working with your advisor to improve your soil health and boost your farm’s productivity and earnings.")
-
-        summary_para5 = document.add_paragraph()
-        run_bold = summary_para5.add_run('Need Assistance? ')
+        run_bold = summary_para4.add_run('Producers: ')
         run_bold.font.bold = True
         run_bold.font.name = 'Calibri'
         run_bold.font.size = Pt(12)
         run_bold.font.color.rgb = RGBColor(0, 0, 0)
-        run_regular = summary_para5.add_run("Contact your Project Representative or ")
+        run_regular = summary_para4.add_run(str(total_producers))
         run_regular.font.name = 'Calibri'
         run_regular.font.size = Pt(12)
         run_regular.font.color.rgb = RGBColor(0, 0, 0)
-        add_hyperlink(summary_para5, 'support@ecoharvest.ag', 'http://www.ecoharvest.ag')
+
+        # Acres 
+        summary_para5 = document.add_paragraph()
+        run_bold = summary_para5.add_run('Acres: ')
+        run_bold.font.bold = True
+        run_bold.font.name = 'Calibri'
+        run_bold.font.size = Pt(12)
+        run_bold.font.color.rgb = RGBColor(0, 0, 0)
+        run_regular = summary_para5.add_run(str(round(total_acres,3)))
+        run_regular.font.name = 'Calibri'
+        run_regular.font.size = Pt(12)
+        run_regular.font.color.rgb = RGBColor(0, 0, 0)
+
+        intro_para = document.add_paragraph()
+        run_intro = intro_para.add_run("Practice Change(s):")
+        run_intro.font.bold = True
+        run_intro.font.name = 'Calibri'
+        run_intro.font.size = Pt(12)
+        run_intro.font.color.rgb = RGBColor(0, 0, 0)
+        add_items_bulleted_list(document, total_practices)
+
+        intro_para = document.add_paragraph()
+        run_intro = intro_para.add_run("Crop(s):")
+        run_intro.font.bold = True
+        run_intro.font.name = 'Calibri'
+        run_intro.font.size = Pt(12)
+        run_intro.font.color.rgb = RGBColor(0, 0, 0)
+        add_items_bulleted_list(document, total_crops)
+
+
+        para = document.add_heading()
+        run = para.add_run(f"Eco-Harvest Results Overview")
+        run_font = run.font
+        run_font.name = 'Calibri'
+        run_font.size = Pt(16)
+        run_font.underline = WD_UNDERLINE.SINGLE
+        run_font.color.rgb = RGBColor(0, 0, 0)
 
         # Payment logic
         specific_projects_16 = [
@@ -232,44 +278,74 @@ def generate_project_report(data, batch, doc):
             if payment_amount < 0:
                 payment_message = "These fields did not accrue enough impact for payment this growing season."
             else:
-                payment_message = f"Producers in this project received a payment of $16/outcome. You will be paid ${payment_amount:.2f}."
+                payment_message = f"Producers in this project received a payment of $16/outcome. Total payment is ${payment_amount:.2f}."
         elif project in specific_projects_20:
             payment_amount = 20 * total_acres
             if payment_amount < 0:
                 payment_message = "These fields did not accrue enough impact for payment this growing season."
             else:
-                payment_message = f"Producers in this project received a payment of $20/acre. You will be paid ${payment_amount:.2f}."
+                payment_message = f"Producers in this project received a payment of $20/acre. Total payment is ${payment_amount:.2f}."
 
-        document.add_paragraph(payment_message)
 
-        # Soil sampling data
-        document.add_heading("Soil Sampling Results", level=2)
-        soil_bullet_points = [
-            "SOC – The percentage of soil that is organic carbon.  2-6% is optimal.",
-            "pH – A measurement of acidity or alkalinity of the soil. Optimal rankings are 4-8.",
-            "BD – Bulk Density is the oven dry weight of soil per unit volume (g/cm3)",
-            "Clay - The percentage of your soil that is clay, 20-35% is optimal."
-        ]
-        for point in soil_bullet_points:
-            paragraph = document.add_paragraph()
-            run_bullet_regular = paragraph.add_run(f'• {point}')
-            run_bullet_regular.font.name = font_name
-            run_bullet_regular.font.size = font_size
-            run_bullet_regular.font.color.rgb = font_color
+        add_custom_bullet(document, "Total Carbon Impacts (Removals + Reductions) Generated: ", f"{total_carbon_g:.3f} metric tonnes of carbon dioxide equivalent (mtCO2e)")
+        add_custom_bullet(document, "Emission Reductions: ", f"Practice changes in the project avoided {total_reductions:.3f} metric tonnes of carbon dioxide equivalent (mtCO2e) reductions.")
+        add_custom_bullet(document, "Carbon Removals: ", f"Soils removed {total_removals:.3f} mtCO2e due to producer's new practice changes.")
+        add_custom_bullet(document, "Total Payment for Outcomes/Impact Units: ", f"{payment_message}")
 
-        soil_data = group[['Field Name (MRV)', 'soil_avg_soc', 'soil_avg_ph', 'soil_avg_bulkdensity', 'soil_clay_fraction']].copy()
-        soil_data.rename(columns={'Field Name (MRV)': 'Field', 'soil_avg_soc': 'SOC', 'soil_avg_ph': 'pH', 'soil_avg_bulkdensity': 'BD', 'soil_clay_fraction': 'Clay'}, inplace=True)
-        create_table(document, soil_data.values, ['Field', 'SOC', 'pH', 'BD', 'Clay'], font_name, font_size, font_color)
 
-        document.add_heading("Carbon Impact Explained", level=2)
+        summary_para4 = document.add_paragraph()
+        run_regular = summary_para4.add_run("*ESMC requires complete historical data to generate a baseline, so fields with historical data gaps are not modeled.")
+        run_regular.font.name = 'Calibri'
+        run_regular.font.size = Pt(9)
+        run_regular.font.color.rgb = RGBColor(0, 0, 0)
+
+        # REWARDS
+        para = document.add_heading()
+        run = para.add_run(f"Eco-Harvest: rewarding producers for regenerative ag")
+        run_font = run.font
+        run_font.name = 'Calibri'
+        run_font.size = Pt(16)
+        run_font.underline = WD_UNDERLINE.SINGLE
+        run_font.color.rgb = RGBColor(0, 0, 0)
+
+        add_custom_bullet(document, "Customizable practices: ", f"Choose how to implement regenerative practices.")
+        add_custom_bullet(document, "Fair Payments: ", f"As a non-profit, ESMC maximizes producer benefits.")
+        add_custom_bullet(document, "Return on Investment: ", f"Many farmers experience a 15-25% return on investment after 3-5 years of regenerative farming.")
+        add_custom_bullet(document, "Weather-Ready Farming: ", f"Increased weather resilience, soil quality, and efficiency")
+
+        thankyou_para = document.add_paragraph()
+        run_regular = thankyou_para.add_run("Thank you for participating in the Eco-Harvest program and for your dedication to regenerative agriculture.")
+        run_regular.font.name = 'Calibri'
+        run_regular.font.size = Pt(12)
+        run_regular.font.color.rgb = RGBColor(0, 0, 0)
+
+        # Appendix
+        para = document.add_heading()
+        run = para.add_run(f"Appendix")
+        run_font = run.font
+        run_font.name = 'Calibri'
+        run_font.size = Pt(16)
+        run_font.underline = WD_UNDERLINE.SINGLE
+        run_font.color.rgb = RGBColor(0, 0, 0)
+
+        
+        para = document.add_heading()
+        run = para.add_run(f"Carbon Impact Explained")
+        run_font = run.font
+        run_font.name = 'Calibri'
+        run_font.size = Pt(14)
+        run_font.underline = WD_UNDERLINE.SINGLE
+        run_font.color.rgb = RGBColor(0, 0, 0)
         summary_para7 = document.add_paragraph()
         run_regular = summary_para7.add_run("ESMC uses historical data, a scientific model, soil samples and weather data to calculate emissions reductions and soil carbon removals. Any negative emissions are increased emissions, which is not unusual in the early years of adopting a practice change. If concerned, please speak with your technical advisor about further modifications to your practice change(s).")
         run_regular.font.name = 'Calibri'
         run_regular.font.size = Pt(12)
         run_regular.font.color.rgb = RGBColor(0, 0, 0)
 
-        add_custom_bullet(document, "Greenhouse Gas Emissions (GHG) Reductions (mtCO2e): ", f"are the sum of the reductions of methane (CH4), direct nitrous oxide (N2O), indirect nitrous oxide (N2O) and supply chain and operational emissions** between the baseline year and the project year.")
-        add_custom_bullet(document, "Soil Carbon Removals (mtCO2e): ", f"The difference in the amount of carbon in the soil between the baseline year and the project year.")
+        add_custom_bullet(document, "Greenhouse Gas Emissions (GHG) Reductions (mtCO2e) ", f"are the sum of the reductions of methane (CH4), direct nitrous oxide (N2O), indirect nitrous oxide (N2O) and supply chain and operational emissions** between the baseline year and the project year.")
+        add_custom_bullet(document, "Greenhouse Gas Removals ", f"is the difference in the amount of carbon in the soil between the baseline year and the project year.")
+        add_custom_bullet(document, "Verified Carbon Impacts ", f"are impacts which were verified by our third-party auditor, SustainCert")
+        add_custom_bullet(document, "Quantified Carbon Impacts ", f"are impacts which were verified by ESMC QA/QC, satellite data, and had most but not all data points supplied by the producer. Since some data points were not from the producer, the quantified carbon impacts are not eligible to be verified.")
 
         summary_para8 = document.add_paragraph()
         run_regular = summary_para8.add_run("**Upstream and on-field process emissions associated with management such as fuel used on farm and imbedded emissions of fertilizer products; ESMC utilized emission factors from Ecoinvent and WFLD.")
@@ -318,119 +394,121 @@ def generate_project_report(data, batch, doc):
         total_delta_emissions = emissions_data['Delta'].sum() * 0.001
 
         impact_table_data = [
-            ("Greenhouse Gas Emissions Reductions", total_reductions),
-            ("N2O Indirect", total_delta_indirect_n2o),
-            ("N2O Direct", total_delta_direct_n2o),
-            ("Methane", total_delta_methane),
-            ("Supply Chain and Operational Emissions", total_delta_emissions),
-            ("Total Soil Carbon Removals", total_removals),
-            ("Total Carbon Impact (Reductions + Removals)", total_carbon_g)
+            ("Greenhouse Gas Emissions Reductions", total_reductions / total_acres if total_acres else 0, total_reductions),
+            ("N2O Indirect", total_delta_indirect_n2o / total_acres if total_acres else 0, total_delta_indirect_n2o),
+            ("N2O Direct", total_delta_direct_n2o / total_acres if total_acres else 0, total_delta_direct_n2o),
+            ("Methane", total_delta_methane / total_acres if total_acres else 0, total_delta_methane),
+            ("Supply Chain and Operational Emissions", total_delta_emissions / total_acres if total_acres else 0, total_delta_emissions),
+            ("Total Soil Carbon Removals", total_removals / total_acres if total_acres else 0, total_removals),
+            ("Total Carbon Impact (Reductions + Removals)", total_carbon_g / total_acres if total_acres else 0, total_carbon_g)
         ]
-        create_table(document, impact_table_data, ['Impact Breakdown', 'Change between Baseline and practice years (mtCO2e)'], font_name, font_size, font_color)
 
+
+         # PROJECT LEVEL ANALYSIS
         para = document.add_heading()
-        run = para.add_run(f"Fields Results")
+        run = para.add_run(f"Project Level Analysis")
         run_font = run.font
         run_font.name = 'Calibri'
         run_font.size = Pt(14)
         run_font.underline = WD_UNDERLINE.SINGLE
-        run_font.color.rgb = RGBColor(112, 173, 71)
+        run_font.color.rgb = RGBColor(0, 0, 0)
 
-        para = document.add_heading()
-        run = para.add_run(f"Reductions")
-        run_font = run.font
-        run_font.name = 'Calibri'
-        run_font.size = Pt(12)
+        # Summary table 
 
-        document.add_paragraph("This section shows the GHG emissions reductions from the intervention(s) per field. Total reductions include the following emissions: direct nitrogen, methane and supply chain & operational emissions.")
+        create_table(document, impact_table_data, ['Impact Breakdown', 'mtCO2e (delta) per acre', 'mtCO2e (delta) total'], font_name, font_size, font_color)
 
-        document.add_paragraph()
-        total_reductions = reductions_data[reductions_data.columns[1]].sum()
-        para = document.add_paragraph()
-        run = para.add_run(f"Total Reductions: {total_reductions:.3f} tonnes CO2e")
-        run.italic = True
+        # Stats 
 
-        create_table(document, reductions_data.values, ['Field', 'Total Reductions'], font_name, font_size, font_color)
+        summary_space = document.add_paragraph()
+        summary_para9 = document.add_paragraph()
+        run_regular = summary_para9.add_run("Mean and Standard Deviation across project as a whole.")
+        run_regular.font.name = 'Calibri'
+        run_regular.font.size = Pt(12)
+        run_regular.font.color.rgb = RGBColor(0, 0, 0)
 
-        document.add_paragraph()
-        para = document.add_paragraph()
-        run = para.add_run("Direct Nitrogen (N2O) Emissions")
-        run.bold = True
-        run.font.name = 'Calibri'
+        summary_para10 = document.add_paragraph()
+        run_regular = summary_para10.add_run("For removals and reductions:")
+        run_regular.font.name = 'Calibri'
+        run_regular.font.size = Pt(12)
+        run_regular.font.color.rgb = RGBColor(0, 0, 0)
+        run_regular.italic = True
 
-        document.add_paragraph()
-        total_n2o_reductions = n2o_data['Delta'].sum()
-        para = document.add_paragraph()
-        run = para.add_run(f"Total Direct N2O Reductions: {total_n2o_reductions:.3f} tonnes CO2e")
-        run.italic = True
+        # Prepare statistics table data
+        stats_table_data = [
+            ("Removals", mean_removals, std_removals),
+            ("Reductions", mean_reductions, std_reductions)
+        ]
 
-        create_table(document, n2o_data.values, ['Field', 'Direct N2O Baseline', 'Direct N2O Practice', 'Delta'], font_name, font_size, font_color)
+        # Create table with Mean and Standard Deviation
+        create_table(document, stats_table_data, ['Outcome', 'Mean (mtCO2e)', 'Standard Deviation (mtCO2e)'], font_name, font_size, font_color)
 
-        document.add_paragraph()
-        para = document.add_paragraph()
-        run = para.add_run("Indirect Nitrogen (N2O) Emissions")
-        run.bold = True
-        run.font.name = 'Calibri'
+        summary_para10 = document.add_paragraph()
+        run_regular = summary_para10.add_run("By practice change(s) implemented:")
+        run_regular.font.name = 'Calibri'
+        run_regular.font.size = Pt(12)
+        run_regular.font.color.rgb = RGBColor(0, 0, 0)
+        run_regular.italic = True
 
-        document.add_paragraph()
-        total_indirectn2o_reductions = n2oindirect_data['Delta'].sum()
-        para = document.add_paragraph()
-        run = para.add_run(f"Total Indirect N2O Reductions: {total_indirectn2o_reductions:.3f} tonnes CO2e")
-        run.italic = True
+        # Prepare practice change stats table data
+        stats_table_data = [
+            (practice, mean_reductions, std_reductions, mean_removals, std_removals)
+            for practice, mean_reductions, std_reductions, mean_removals, std_removals in practice_stats
+        ]
 
-        create_table(document, n2oindirect_data.values, ['Field', 'Indirect N2O Baseline', 'Indirect N2O Practice', 'Delta'], font_name, font_size, font_color)
+        # Create table with Mean and Standard Deviation segmented by practice change
+        create_table(document, stats_table_data, ['Practice Change', 'Mean Reductions (mtCO2e)', 'Std Dev Reductions (mtCO2e)', 'Mean Removals (mtCO2e)', 'Std Dev Removals (mtCO2e)'], font_name, font_size, font_color)
 
-        document.add_paragraph()
-        para = document.add_paragraph()
-        run = para.add_run("Methane (CH4) Emissions")
-        run.bold = True
-        run.font.name = 'Calibri'
+        # Table Segmented by Crops
 
-        document.add_paragraph()
-        total_ch4_reductions = methane_data['Delta'].sum()
-        para = document.add_paragraph()
-        run = para.add_run(f"Total CH4 Reductions: {total_ch4_reductions:.3f} tonnes CO2e")
-        run.italic = True
+        # Reductions data
+        reductions_data = group[['Field Name (MRV)', 'Commodity', 'reduced' if batch == "Quantified" else 'reduced_adjusted']].copy()
+        reductions_data.rename(columns={'Field Name (MRV)': 'Field'}, inplace=True)
+        reductions_data[reductions_data.columns[2]] = pd.to_numeric(reductions_data[reductions_data.columns[2]], errors='coerce')
+        total_reductions = reductions_data[reductions_data.columns[2]].sum()
 
-        create_table(document, methane_data.values, ['Field', 'CH4 Baseline', 'CH4 Practice', 'Delta'], font_name, font_size, font_color)
+        # Removals data
+        removals_data = group[['Field Name (MRV)', 'Commodity', 'baseline_dsoc', 'dsoc', 'removed']].copy()
+        removals_data.rename(columns={'Field Name (MRV)': 'Field', 'removed': 'Removed'}, inplace=True)
+        removals_data['Removed'] = pd.to_numeric(removals_data['Removed'], errors='coerce')
+        total_removals = removals_data['Removed'].sum()
+        total_carbon_g = float(total_reductions) + float(total_removals)
 
-        document.add_paragraph()
-        para = document.add_paragraph()
-        run = para.add_run("Supply Chain and Operational Emissions")
-        run.bold = True
-        run.font.name = 'Calibri'
+        # Ensure commodity column is treated as string
+        reductions_data['Commodity'] = reductions_data['Commodity'].astype(str)
+        removals_data['Commodity'] = removals_data['Commodity'].astype(str)
 
-        document.add_paragraph()
-        total_emissions_reductions = emissions_data['Delta'].sum()
-        para = document.add_paragraph()
-        run = para.add_run(f"Total Supply Chain and Operational Emissions: {total_delta_emissions:.3f} tonnes CO2e")
-        run.italic = True
+        # Aggregate outcomes by practice change
+        commodity_stats = []
+        for commodity in total_crops:
+            commodity_reductions = reductions_data[reductions_data['Commodity'] == commodity]
+            commodity_removals = removals_data[removals_data['Commodity'] == commodity]
 
-        create_table(document, emissions_data.values, ['Field', 'Supply Chain & Operational Emissions Baseline', 'Supply Chain & Operational Emissions Practice', 'Delta'], font_name, font_size, font_color, scale_emissions=True)
+            mean_reductions = commodity_reductions[commodity_reductions.columns[2]].mean()
+            std_reductions = commodity_reductions[commodity_reductions.columns[2]].std()
 
-        para = document.add_heading()
-        run = para.add_run(f"Removals")
-        run_font = run.font
-        run_font.name = 'Calibri'
-        run_font.size = Pt(12)
+            mean_removals = commodity_removals['Removed'].mean()
+            std_removals = commodity_removals['Removed'].std()
 
-        document.add_paragraph("This section shows the modeled carbon removals per field from the intervention(s).")
+            commodity_stats.append((commodity, mean_reductions, std_reductions, mean_removals, std_removals))
 
-        document.add_paragraph()
-        para = document.add_paragraph()
-        run = para.add_run(f"Total Removals: {total_removals:.3f} tonnes CO2e")
-        run.italic = True
+        summary_para10 = document.add_paragraph()
+        run_regular = summary_para10.add_run("By crop(s) planted:")
+        run_regular.font.name = 'Calibri'
+        run_regular.font.size = Pt(12)
+        run_regular.font.color.rgb = RGBColor(0, 0, 0)
+        run_regular.italic = True
 
-        removals_data.rename(columns={'baseline_dsoc': 'Removals Baseline', 'dsoc': 'Removals Practice', 'Removed': 'Delta'}, inplace=True)
-        create_table(document, removals_data.values, ['Field', 'Removals Baseline', 'Removals Practice', 'Delta'], font_name, font_size, font_color)
+        # Prepare practice change stats table data
+        stats_table_data = [
+            (commodity, mean_reductions, std_reductions, mean_removals, std_removals)
+            for commodity, mean_reductions, std_reductions, mean_removals, std_removals in commodity_stats
+        ]
 
-        para = document.add_heading()
-        run = para.add_run(f"Payment Structure")
-        run_font = run.font
-        run_font.name = 'Calibri'
-        run_font.size = Pt(12)
+        # Create table with Mean and Standard Deviation segmented by practice change
+        create_table(document, stats_table_data, ['Commodity Crop', 'Mean Reductions (mtCO2e)', 'Std Dev Reductions (mtCO2e)', 'Mean Removals (mtCO2e)', 'Std Dev Removals (mtCO2e)'], font_name, font_size, font_color)
 
-        document.add_paragraph(payment_message)
+        ######## 
+
 
         document.add_picture('diagram.png')
         italic_paragraph = document.add_paragraph()
@@ -484,4 +562,3 @@ for project, document in doc.projects.items():
     document.save(os.path.join(output_dir, doc_file_name))
 
 print("Project reports generated successfully.")
-
