@@ -66,6 +66,18 @@ def add_custom_bullet(doc, label, value):
     value_run.font.name = 'Calibri'
     value_run.font.size = Pt(12)
 
+def add_items_bulleted_list(document, practices):
+    for practice in practices:
+        paragraph = document.add_paragraph(style='List Bullet')
+        run = paragraph.add_run(practice)
+        run.font.name = 'Calibri'
+        run.font.size = Pt(12)
+        run.font.color.rgb = RGBColor(0, 0, 0)
+        # Indent the paragraph
+        paragraph_format = paragraph.paragraph_format
+        paragraph_format.left_indent = Inches(0.5)
+
+
 def add_hyperlink(paragraph, text, url):
     part = paragraph.part
     r_id = part.relate_to(url, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink", is_external=True)
@@ -226,35 +238,22 @@ def generate_project_report(data, batch, doc):
         run_regular.font.size = Pt(12)
         run_regular.font.color.rgb = RGBColor(0, 0, 0)
 
-        # Practices
-        total_practices = str(total_practices)
-        total_practices = total_practices.replace('[','')
-        total_practices = total_practices.replace(']','') 
-        summary_para6 = document.add_paragraph()
-        run_bold = summary_para6.add_run('Practice Change(s): ')
-        run_bold.font.bold = True
-        run_bold.font.name = 'Calibri'
-        run_bold.font.size = Pt(12)
-        run_bold.font.color.rgb = RGBColor(0, 0, 0)
-        run_regular = summary_para6.add_run(total_practices)
-        run_regular.font.name = 'Calibri'
-        run_regular.font.size = Pt(12)
-        run_regular.font.color.rgb = RGBColor(0, 0, 0)
+        intro_para = document.add_paragraph()
+        run_intro = intro_para.add_run("Practice Change(s):")
+        run_intro.font.bold = True
+        run_intro.font.name = 'Calibri'
+        run_intro.font.size = Pt(12)
+        run_intro.font.color.rgb = RGBColor(0, 0, 0)
+        add_items_bulleted_list(document, total_practices)
 
-        #Crops 
-        total_crops_str = str(total_crops)
-        total_crops_updated = total_crops_str.replace('[','')
-        total_crops_updated = total_crops_updated.replace(']','')
-        summary_para7 = document.add_paragraph()
-        run_bold = summary_para7.add_run('Crop(s): ')
-        run_bold.font.bold = True
-        run_bold.font.name = 'Calibri'
-        run_bold.font.size = Pt(12)
-        run_bold.font.color.rgb = RGBColor(0, 0, 0)
-        run_regular = summary_para7.add_run(total_crops_updated)
-        run_regular.font.name = 'Calibri'
-        run_regular.font.size = Pt(12)
-        run_regular.font.color.rgb = RGBColor(0, 0, 0)
+        intro_para = document.add_paragraph()
+        run_intro = intro_para.add_run("Crop(s):")
+        run_intro.font.bold = True
+        run_intro.font.name = 'Calibri'
+        run_intro.font.size = Pt(12)
+        run_intro.font.color.rgb = RGBColor(0, 0, 0)
+        add_items_bulleted_list(document, total_crops)
+
 
         para = document.add_heading()
         run = para.add_run(f"Eco-Harvest Results Overview")
@@ -267,7 +266,7 @@ def generate_project_report(data, batch, doc):
         # Payment logic
         specific_projects_16 = [
             "AGI SGP Market", "AGI SGP Pipeline", "NACD SGP Market",
-            "Northern Plains Cropping", "NACD NGP Market", "NACD NGP Pipeline"
+            "Northern Plains Cropping", "NGP-NACD Market", "NGP-NACD Pipeline"
         ]
         specific_projects_20 = ["TNC Minnesota", "TNC Nebraska"]
 
@@ -404,9 +403,8 @@ def generate_project_report(data, batch, doc):
             ("Total Carbon Impact (Reductions + Removals)", total_carbon_g / total_acres if total_acres else 0, total_carbon_g)
         ]
 
-        create_table(document, impact_table_data, ['Impact Breakdown', 'mtCO2e (delta) per acre', 'mtCO2e (delta) total'], font_name, font_size, font_color)
 
-        # PROJECT MEANS 
+         # PROJECT LEVEL ANALYSIS
         para = document.add_heading()
         run = para.add_run(f"Project Level Analysis")
         run_font = run.font
@@ -415,6 +413,13 @@ def generate_project_report(data, batch, doc):
         run_font.underline = WD_UNDERLINE.SINGLE
         run_font.color.rgb = RGBColor(0, 0, 0)
 
+        # Summary table 
+
+        create_table(document, impact_table_data, ['Impact Breakdown', 'mtCO2e (delta) per acre', 'mtCO2e (delta) total'], font_name, font_size, font_color)
+
+        # Stats 
+
+        summary_space = document.add_paragraph()
         summary_para9 = document.add_paragraph()
         run_regular = summary_para9.add_run("Mean and Standard Deviation across project as a whole.")
         run_regular.font.name = 'Calibri'
