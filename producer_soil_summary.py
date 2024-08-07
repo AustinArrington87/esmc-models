@@ -21,7 +21,8 @@ ignore_projects = [
     "Cabbage Patch- Will Test", "Data Modeling", "ESMC-Test", 
     "G's EoY test project", "Laura Test", "Michelle-test", 
     "Producer Circle", "Regrow test project", "SLM Demo", 
-    "The Fertilizer Institute (TFI)", "Travis-Test1", "Test Project 10", "Historical Fields"
+    "The Fertilizer Institute (TFI)", "Travis-Test1", "Test Project 10", "Historical Fields",
+    "CIF Test Project", "ESMC-PM-Test"
 ]
 
 # Filter out the ignored projects
@@ -157,6 +158,13 @@ def generate_soil_summary_report(data, doc):
         run_regular.font.name = 'Calibri'
         run_regular.font.size = Pt(12)
         run_regular.font.color.rgb = RGBColor(0, 0, 0)
+
+        summary_para4 = document.add_paragraph()
+        run_regular = summary_para4.add_run('ESMC requires complete historical data to model a field. If historical data is incomplete, we are unable to model the field. Additional reasons why were not able to model a field include grazing events, the use of custom fertilizers or compost, crops not supported by the model or tile drainage events. We appreciate your patience as we work with our modeling partners to model fields with these events, crops and nuances. Please check with your implementation partner for further assistance.')
+        run_regular.font.name = 'Calibri'
+        run_regular.font.size = Pt(12)
+        run_regular.font.color.rgb = RGBColor(0, 0, 0)
+
 
         for year in sample_years:
             year_group = group[group['Soil Sample Year'] == year]
