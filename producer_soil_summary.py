@@ -159,6 +159,21 @@ def generate_soil_summary_report(data, doc):
         run_regular.font.size = Pt(12)
         run_regular.font.color.rgb = RGBColor(0, 0, 0)
 
+        document.add_heading("Soil Sampling Results", level=2)
+
+        soil_bullet_points = [
+            "SOC – The percentage of soil that is organic carbon.  2-6% is optimal.",
+            "pH – A measurement of acidity or alkalinity of the soil. Optimal rankings are 4-8.",
+            "BD – Bulk Density is the oven dry weight of soil per unit volume (g/cm3)",
+            "Clay - The percentage of your soil that is clay, 20-35% is optimal."
+        ]
+        for point in soil_bullet_points:
+            paragraph = document.add_paragraph()
+            run_bullet_regular = paragraph.add_run(f'• {point}')
+            run_bullet_regular.font.name = font_name
+            run_bullet_regular.font.size = font_size
+            run_bullet_regular.font.color.rgb = font_color
+
         summary_para4 = document.add_paragraph()
         run_regular = summary_para4.add_run('ESMC requires complete historical data to model a field. If historical data is incomplete, we are unable to model the field. Additional reasons why were not able to model a field include grazing events, the use of custom fertilizers or compost, crops not supported by the model or tile drainage events. We appreciate your patience as we work with our modeling partners to model fields with these events, crops and nuances. Please check with your implementation partner for further assistance.')
         run_regular.font.name = 'Calibri'
@@ -171,16 +186,15 @@ def generate_soil_summary_report(data, doc):
             if len(sample_years) > 1:
                 document.add_heading(f"Soil Sample Year: {int(year)}", level=2)
 
-            fields_data = year_group[['Field (MRV Name)', 'acres', 'sampled points', 'soc_avg', 'bd_avg']].copy()
+            fields_data = year_group[['Field (MRV Name)', 'acres', 'soc_avg', 'bd_avg']].copy()
             fields_data.rename(columns={
                 'Field (MRV Name)': 'Field',
                 'acres': 'Acres',
-                'sampled points': 'Sampled Points',
                 'soc_avg': 'SOC Avg',
                 'bd_avg': 'BD Avg'
             }, inplace=True)
 
-            create_table(document, fields_data.values, ['Field', 'Acres', 'Sampled Points', 'SOC Avg', 'BD Avg'], font_name, font_size, font_color)
+            create_table(document, fields_data.values, ['Field', 'Acres', 'SOC Avg', 'BD Avg'], font_name, font_size, font_color)
 
     return doc.producers
 
