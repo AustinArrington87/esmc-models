@@ -1,23 +1,21 @@
 import pandas as pd
-from docx import Document
+import openpyxl
+from openpyxl.styles import Font
 
 # Load the dataset
-file_path = 'IDD_Analytics_2023.csv'  # Update the path if necessary
+file_path = 'Analytics_IDD_2023.csv'  # Update the path if necessary
 data = pd.read_csv(file_path)
 
 # Define the practice change categories
 categories = ['Nutrient management', 'Normal operation', 'Tillage reduction', 'Cover cropping']
 
-# IDs to ignore
-ignore_ids = ['660c5916-ab5a-4701-8e6a-e0696295522a', '97b1a2e6-fd28-4d18-b0e5-f02d391691e2']
+# Filter for rows with status "READY_TO_BE_VERIFIED"
+data = data[data['model_dndc_s3s_submission_status__value'] == 'READY_TO_BE_VERIFIED']
 
-# Filter out rows with the specified IDs
-data = data[~data['id'].isin(ignore_ids)]
+# Create a new Excel workbook
+workbook = openpyxl.Workbook()
 
-# Create a new Word document
-doc = Document()
-
-# Function to process and add a category to the document
+# Function to process and add a category to the Excel workbook
 def process_category(category):
     # Filter the data for the current category
     filtered_data = data[data['practice_change'] == category]
@@ -31,32 +29,43 @@ def process_category(category):
     # Round the acres to two decimal places
     grouped_data['Summed_Acres'] = grouped_data['Summed_Acres'].round(2)
 
-    # Add category as a heading in the Word document
-    doc.add_heading(category, level=1)
-
-    # Add the table to the Word document
-    table = doc.add_table(rows=1, cols=3)
-    table.style = 'Table Grid'
+    # Create a new worksheet for the category
+    worksheet = workbook.create_sheet(title=category)
 
     # Add header row
-    hdr_cells = table.rows[0].cells
-    hdr_cells[0].text = 'Program Region Crop'
-    hdr_cells[1].text = 'Number of Fields'
-    hdr_cells[2].text = 'Summed Acres'
+    worksheet.append(['Program Region Crop', 'Number of Fields', 'Summed Acres'])
 
     # Add data rows
     for index, row in grouped_data.iterrows():
-        row_cells = table.add_row().cells
-        row_cells[0].text = str(row['program_region_crop'])
-        row_cells[1].text = str(row['Number_of_Fields'])
-        row_cells[2].text = f"{row['Summed_Acres']:.2f}"  # Format the acres value to 2 decimal places
+        worksheet.append([
+            row['program_region_crop'],
+            row['Number_of_Fields'],
+            f"{row['Summed_Acres']:.2f}"
+        ])
 
-    # Add a space after the table
-    doc.add_paragraph()
+    # Calculate totals
+    total_fields = grouped_data['Number_of_Fields'].sum()
+    total_acres = grouped_data['Summed_Acres'].sum()
 
-# Process each category and add it to the document
+    # Add a blank row
+    worksheet.append([])
+
+    # Add total row
+    total_row = worksheet.max_row + 1
+    worksheet.cell(row=total_row, column=1, value='TOTAL')
+    worksheet.cell(row=total_row, column=2, value=total_fields)
+    worksheet.cell(row=total_row, column=3, value=f"{total_acres:.2f}")
+
+    # Apply bold font to the total row
+    for cell in worksheet[total_row]:
+        cell.font = Font(bold=True)
+
+# Process each category and add it to the Excel workbook
 for category in categories:
     process_category(category)
 
-# Save the document
-doc.save('Agricultural_Practices_Summary.docx')
+# Remove the default sheet created by openpyxl
+workbook.remove(workbook['Sheet'])
+
+# Save the Excel workbook
+workbook.save('Agricultural_Practices_Summary.xlsx')
