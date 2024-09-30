@@ -210,11 +210,14 @@ def generate_report(data, batch, doc):
 
         add_custom_bullet(document, "Customizable practices: ", f"Choose how to implement regenerative practices.")
         add_custom_bullet(document, "Fair Payments: ", f"As a non-profit, ESMC maximizes producer benefits.")
-        paragraph = document.add_paragraph()
-        paragraph.add_run("Many farmers experience a 15-25% return on investment after 3–5 years of ").bold = False
-        add_hyperlink(paragraph, 'regenerative farming', 'https://www.bcg.com/publications/2023/regenerative-agriculture-benefits-germany-beyond')
-        paragraph.add_run(".").bold = False
-        add_custom_bullet(document, "Weather-Ready Farming: ", f"Thank you for participating in the Eco-Harvest program. Continue working with your advisor to improve your soil health and boost your farm’s productivity and earnings.")
+        add_custom_bullet(document, "Return on Investment: ", f"Many farmers experience a 15-25% return on investment after 3-5 years of regenerative farming.")
+        add_custom_bullet(document, "Weather-Ready Farming: ", f"Increased weather resilience, soil quality, and efficiency")
+
+        thankyou_para = document.add_paragraph()
+        run_regular = thankyou_para.add_run("Thank you for participating in the Eco-Harvest program and for your dedication to regenerative agriculture.")
+        run_regular.font.name = 'Calibri'
+        run_regular.font.size = Pt(12)
+        run_regular.font.color.rgb = RGBColor(0, 0, 0)
 
         summary_para6 = document.add_paragraph()
         run_bold = summary_para6.add_run('Need Assistance? ')
@@ -231,7 +234,7 @@ def generate_report(data, batch, doc):
         # Payment logic
         specific_projects_16 = [
             "AGI SGP Market", "AGI SGP Pipeline", "NACD SGP Market",
-            "Northern Plains Cropping", "NACD NGP Market", "NACD NGP Pipeline"
+            "Northern Plains Cropping", "NGP-NACD Market", "NGP-NACD Pipeline"
         ]
         specific_projects_20 = ["TNC Minnesota", "TNC Nebraska"]
 
@@ -472,7 +475,10 @@ def generate_report(data, batch, doc):
 
 # Load data
 verified_data = load_data(run_year, "Verified")
-quantified_data = load_data(run_year, "Quantified")
+try:
+    quantified_data = load_data(run_year, "Quantified")
+except FileNotFoundError:
+    quantified_data = None
 
 # Initialize document dictionary
 class DocumentHolder:
@@ -483,7 +489,8 @@ doc = DocumentHolder()
 
 # Generate reports for each batch
 generate_report(verified_data, "Verified", doc)
-generate_report(quantified_data, "Quantified", doc)
+if quantified_data is not None:
+    generate_report(quantified_data, "Quantified", doc)
 
 # Save documents
 output_dir = "Producers"
