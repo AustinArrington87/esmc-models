@@ -193,6 +193,7 @@ def generate_report(data, batch, doc):
         add_custom_bullet(document, "Emission Reductions: ", f"Your practice changes avoided {total_reductions:.3f} mtCO2e.")
         add_custom_bullet(document, "Carbon Removals: ", f"Your soils removed {total_removals:.3f} mtCO2e")
         add_custom_bullet(document, "Total Modeled Acres*: ", f"{fields_data['Acres'].sum():.3f}")
+        add_custom_bullet(document, "Total Impact Per Acre: ", f"{total_carbon_g / fields_data['Acres'].sum():.3f} mtCO2e/acre")
 
         summary_para5 = document.add_paragraph()
         run_regular = summary_para5.add_run("*ESMC requires complete historical data to generate a baseline, so fields with historical data gaps are not modeled.")
