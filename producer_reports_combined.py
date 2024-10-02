@@ -193,7 +193,7 @@ def generate_report(data, batch, doc):
         add_custom_bullet(document, "Emission Reductions: ", f"Your practice changes avoided {total_reductions:.3f} mtCO2e.")
         add_custom_bullet(document, "Carbon Removals: ", f"Your soils removed {total_removals:.3f} mtCO2e")
         add_custom_bullet(document, "Total Modeled Acres*: ", f"{fields_data['Acres'].sum():.3f}")
-        add_custom_bullet(document, "Total Impact Per Acre: ", f"{total_carbon_g / fields_data['Acres'].sum():.3f} mtCO2e/acre")
+        add_custom_bullet(document, "Impact Unit Per Acre: ", f"{total_carbon_g / fields_data['Acres'].sum():.3f} mtCO2e/acre")
 
         summary_para5 = document.add_paragraph()
         run_regular = summary_para5.add_run("*ESMC requires complete historical data to generate a baseline, so fields with historical data gaps are not modeled.")
@@ -440,12 +440,38 @@ def generate_report(data, batch, doc):
         removals_data.rename(columns={'baseline_dsoc': 'Removals Baseline', 'dsoc': 'Removals Practice', 'Removed': 'Delta'}, inplace=True)
         create_table(document, removals_data.values, ['Field', 'Removals Baseline', 'Removals Practice', 'Delta'], font_name, font_size, font_color)
 
+        # After the Removals section and before the Payment Structure section, add:
+
         para = document.add_heading()
-        run = para.add_run(f"Payment Structure")
+        run = para.add_run(f"Impact Unit Per Acre")
         run_font = run.font
         run_font.name = 'Calibri'
         run_font.size = Pt(12)
 
+        document.add_paragraph("This section shows the net impact per acre (reductions plus removals) per field from the intervention.")
+
+        document.add_paragraph()
+        total_impact_per_acre = total_carbon_g / fields_data['Acres'].sum()
+        para = document.add_paragraph()
+        run = para.add_run(f"Total Net Impact Per Acre: {total_impact_per_acre:.3f} tonnes CO2e/acre")
+        run.italic = True
+
+        # Prepare the data for the new table
+        impact_per_acre_data = group[['Field Name (MRV)', 'Acres']].copy()
+        impact_per_acre_data['Net Impact'] = group['reduced' if batch == "Quantified" else 'reduced_adjusted'] + group['removed']
+        impact_per_acre_data['Net Impact/Acre'] = impact_per_acre_data['Net Impact'] / impact_per_acre_data['Acres']
+        impact_per_acre_data.rename(columns={'Field Name (MRV)': 'Field'}, inplace=True)
+
+        # Format the numeric columns
+        impact_per_acre_data['Acres'] = impact_per_acre_data['Acres'].apply(lambda x: f"{x:.3f}")
+        impact_per_acre_data['Net Impact'] = impact_per_acre_data['Net Impact'].apply(lambda x: f"{x:.3f}")
+        impact_per_acre_data['Net Impact/Acre'] = impact_per_acre_data['Net Impact/Acre'].apply(lambda x: f"{x:.3f}")
+
+        create_table(document, impact_per_acre_data.values, ['Field', 'Acres', 'Net Impact', 'Net Impact/Acre'], font_name, font_size, font_color)
+
+        # Continue with the existing Payment Structure section
+        para = document.add_heading()
+        run = para.add_run(f"Payment Structure")
         document.add_paragraph(payment_message)
 
         document.add_picture('diagram.png')
