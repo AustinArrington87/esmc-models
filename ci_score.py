@@ -71,7 +71,7 @@ def calculate_ci_score(row):
     total_emissions = (
         (row["n2o_direct"] * 0.001) +
         (row["n2o_indirect_adjusted"] * 0.001) +
-        (row["methane"] * 0.001) +
+        (row["methane_adjusted"] * 0.001) +
         row["field_practice_emissions"]
     )
     
