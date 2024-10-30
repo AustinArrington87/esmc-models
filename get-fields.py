@@ -2,7 +2,7 @@ import requests
 
 # Global variables
 url = "https://graphql.ecoharvest.ag/v1/graphql"
-admin_secret_key = ""
+admin_secret_key = "EnterKey"
 
 # Set up the headers with the Hasura admin secret
 headers = {
@@ -22,36 +22,39 @@ headers = {
     "x-hasura-admin-secret": admin_secret_key
 }
 
-# Function to fetch field details based on abbreviation
-def fetch_field_details(abbr="%"):
-    # Define the GraphQL query with the variable `abbr`
+# Function to fetch field details based on abbreviation and year
+def fetch_field_details(abbr="%", year=None):
+    # Define the GraphQL query with variables for `abbr` and `year`
     query = """
-    query FieldDetails($abbr: String = "%") {
-      esmcProject(where: {abbreviation:{_ilike:$abbr}}) {
-        name
-        abbreviation
+    query FieldDetails($abbr: String = "%", $year: smallint!) {
+      farmField(where: {
+        many_field_has_many_practice_changes: {practice_change: {abbreviation: {_neq: "PE"}}, year: {_eq: $year}}, 
+        seasons: {year: {_eq: $year}},
+        farmer_project_fields: {farmer_project: {project: {abbreviation: {_ilike: $abbr}}}}
+      }) {
         id
-        currentEnrollmentYear
-        farmer_projects {
+        name
+        boundary
+        boundaryArray
+        subboundaries
+        app_user {
+          displayName
           id
-          farmerAppUserId
-          app_user {
-            displayName
-            id
-            email
-            phone
-            street
-            city
-            state {
-              stusps
+          email
+          phone
+          street
+          city
+          state {
+            stusps
             }
-            zipcode
-            }
-          farmer_project_fields {
-            field {
+          zipcode
+        }
+        farmer_project_fields {
+          farmer_project {
+            project {
+              name
+              abbreviation
               id
-              acres
-              boundary
             }
           }
         }
@@ -59,9 +62,10 @@ def fetch_field_details(abbr="%"):
     }
     """
 
-    # Define the variables
+    # Define the variables, including year if provided
     variables = {
-        "abbr": abbr
+        "abbr": abbr,
+        "year": year
     }
 
     # Send the request with the query and variables
@@ -80,7 +84,9 @@ def fetch_field_details(abbr="%"):
 
 # Example usage
 abbr_value = "CIFCSC"  # Replace with the desired abbreviation
-field_details = fetch_field_details(abbr=abbr_value)
+year_value = 2024  # Replace with the desired year
+
+field_details = fetch_field_details(abbr=abbr_value, year=year_value)
 print(field_details)
 # get project ID 
 
