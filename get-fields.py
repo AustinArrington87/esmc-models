@@ -4,7 +4,7 @@ from pathlib import Path
 
 # Global variables
 url = "https://graphql.ecoharvest.ag/v1/graphql"
-admin_secret_key = "D2FwLafuZdMQuDue7gv66xkD8xuSgW"
+admin_secret_key = "EnterKey"
 
 # Set up the headers with the Hasura admin secret
 headers = {
