@@ -1,8 +1,10 @@
 import requests
+import json
+from pathlib import Path
 
 # Global variables
 url = "https://graphql.ecoharvest.ag/v1/graphql"
-admin_secret_key = "EnterKey"
+admin_secret_key = "D2FwLafuZdMQuDue7gv66xkD8xuSgW"
 
 # Set up the headers with the Hasura admin secret
 headers = {
@@ -75,7 +77,44 @@ def fetch_field_details(abbr="%", year=None):
     if response.status_code == 200:
         print("Query successful!")
         response_data = response.json()
-        print(response_data)
+        
+        # Extract project abbreviation for file naming
+        project_abbr = abbr
+        file_name_base = f"{project_abbr}_{year}"
+
+        # Save response as JSON
+        json_path = Path(f"{file_name_base}.json")
+        with open(json_path, "w") as json_file:
+            json.dump(response_data, json_file, indent=2)
+        print(f"Saved JSON file: {json_path}")
+
+        # Create and save GeoJSON based on boundary information
+        features = []
+        for field in response_data["data"]["farmField"]:
+            features.append({
+                "type": "Feature",
+                "properties": {
+                    "id": field["id"],
+                    "name": field["name"],
+                    "email": field["app_user"]["email"] if field["app_user"] else None,
+                    "displayName": field["app_user"]["displayName"] if field["app_user"] else None,
+                },
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": field["boundaryArray"] if field["boundaryArray"] else field["boundary"]
+                }
+            })
+
+        geojson_data = {
+            "type": "FeatureCollection",
+            "features": features
+        }
+
+        geojson_path = Path(f"{file_name_base}.geojson")
+        with open(geojson_path, "w") as geojson_file:
+            json.dump(geojson_data, geojson_file, indent=2)
+        print(f"Saved GeoJSON file: {geojson_path}")
+
         return response_data
     else:
         print(f"Query failed with status code {response.status_code}")
@@ -83,7 +122,7 @@ def fetch_field_details(abbr="%", year=None):
         return None
 
 # Example usage
-abbr_value = "CIFCSC"  # Replace with the desired abbreviation
+abbr_value = "KC"  # Replace with the desired abbreviation
 year_value = 2024  # Replace with the desired year
 
 field_details = fetch_field_details(abbr=abbr_value, year=year_value)
