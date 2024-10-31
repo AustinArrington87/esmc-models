@@ -1,5 +1,6 @@
 import mrvApi as mrv
 import requests
+import json
 
 c = mrv.configure(".env.production")
 
@@ -15,6 +16,11 @@ headers = {
 # Define the GraphQL endpoint
 url = "https://graphql.ecoharvest.ag/v1/graphql"
 
+# Mapping of crop types to commodity IDs
+crop_type_to_id = {
+    "Soybeans": 2,
+    "Winter Wheat": 3
+}
 
 # list projects 
 projects = mrv.projects()
@@ -35,9 +41,10 @@ AGIProducers = mrv.enrolledProducers(AGIprojId, 2023)
 
 williamsFields = mrv.fieldSummary('7b227522-8f36-4ecf-8bb7-1ad98d4d6c8c', 2023)
 #print(williamsFields)
-# P Rinehart - '3d72c0ce-c16c-48c0-be8c-384a0dcaff68' 
-# K Rinehart - '76e43cc9-2e2a-47e8-a5ae-baaefbdf0c84'
-# P Rinehart West - '07206026-bd14-4732-b82a-1657dc68e3fa'
+# P Rinehart - '3d72c0ce-c16c-48c0-be8c-384a0dcaff68' ✓
+# K Rinehart - '76e43cc9-2e2a-47e8-a5ae-baaefbdf0c84' 
+# Soybeans harvested 2023-10-09, 21.04690989 bu/ac + '' harvested 2024-06-16 213.1069567 bua/acre + Winter Wheat harvested 2024-06-17 10.8198256 bu/acre
+# P Rinehart West - '07206026-bd14-4732-b82a-1657dc68e3fa' -- missing the partner_field_id
 # Smith West - '37a2f972-90c5-40c9-a5f1-56d5f8768e27'
 
 ballFields = mrv.fieldSummary('63b36320-8e38-454f-97c9-e4dcb3510d61', 2023)
@@ -56,12 +63,12 @@ langfordFields = mrv.fieldSummary('37459734-03ac-4b4f-95c0-bb4311beb121', 2023)
 
 # Pass in the fieldID and get the seasonID back 
 
-# Function to retrieve season_id based on fieldId
-def get_season_id(fieldId):
-    # Define the query with a variable for `fieldId`
+# Function to retrieve season_id based on fieldId and year
+def get_season_id(fieldId, year):
+    # Define the query with a variable for `fieldId` and `year`
     query = """
-    query MyQuery($fieldId: uuid!) {
-      farmSeason(where: {fieldId: {_eq: $fieldId}, year: {_eq: "2024"}}) {
+    query MyQuery($fieldId: uuid!, $year: smallint!) {
+      farmSeason(where: {fieldId: {_eq: $fieldId}, year: {_eq: $year}}) {
         id
       }
     }
@@ -69,7 +76,8 @@ def get_season_id(fieldId):
     
     # Define the variables
     variables = {
-        "fieldId": fieldId
+        "fieldId": fieldId,
+        "year": year
     }
 
     # Send the request with the query and variables
@@ -80,7 +88,7 @@ def get_season_id(fieldId):
         print("Query successful!")
         response_data = response.json()
         season_id = response_data['data']['farmSeason'][0]['id'] if response_data['data']['farmSeason'] else None
-        print(f"Season ID: {season_id}")
+        print(f"Season ID for year {year}: {season_id}")
         return season_id
     else:
         print(f"Query failed with status code {response.status_code}")
@@ -117,7 +125,7 @@ def insert_harvest_event(commodityId, eventId, doneAt, yield_value, seasonId):
         print("Mutation successful!")
         response_data = response.json()
         affected_rows = response_data['data']['insertFarmEventData']['affected_rows']
-        print(f"Affected Rows: {affected_rows}")
+        #print(f"Affected Rows: {affected_rows}")
         return affected_rows
     else:
         print(f"Mutation failed with status code {response.status_code}")
@@ -126,12 +134,59 @@ def insert_harvest_event(commodityId, eventId, doneAt, yield_value, seasonId):
 
 ################################################
 
+# Function to parse harvest events from JSON
+def parse_harvest_events(producer_id, field_id):
+    with open('cpfrs_by_grower.json') as f:
+        data = json.load(f)
+
+    # Check if the producer_id exists in the JSON data
+    if producer_id not in data:
+        print(f"Producer ID {producer_id} not found in JSON data.")
+        return
+
+    fields = data[producer_id]
+    found = False  # Flag to check if field_id is found
+
+    for field in fields:
+        if field.get("partner_field_id") == field_id:
+            found = True
+            print(f"Found field_id: {field_id} for producer: {producer_id}")
+            harvest_events = field.get("field_events", [])
+            if not harvest_events:
+                print(f"No harvest events found for field_id: {field_id}")
+                return  # Exit if no harvest events
+
+            # Assuming we want to check the first field_event for crop_cycle_summaries
+            if harvest_events:
+                crop_cycle_summaries = harvest_events[0].get("crop_cycle_summaries", {})
+                harvest_list = crop_cycle_summaries.get("harvest", [])
+                
+                for harvest in harvest_list:
+                    crop_type = harvest.get("crop_type", "")
+                    end_date = harvest.get("end_date", "")
+                    year = end_date.split("-")[0]  # Extract the year from the end_date
+                    end_date_stripped = end_date.split("T")[0]  # Strip time
+
+                    # Get the season_id for the corresponding year
+                    season_id = get_season_id(field_id, int(year))
+
+                    avg_dry_yield = harvest.get("avg_dry_yield", {}).get("value", 0)
+
+                    # Call insert_harvest_event with the extracted values
+                    commodity_id = crop_type_to_id.get(crop_type)
+                    if commodity_id is not None and season_id is not None:
+                        affected_rows = insert_harvest_event(commodityId=commodity_id, eventId=5, doneAt=end_date_stripped, yield_value=avg_dry_yield, seasonId=season_id)
+                        print(f"Affected Rows for {crop_type} on {end_date_stripped}: {affected_rows}")
+                    else:
+                        print(f"Commodity ID not found for crop type: {crop_type} or season_id is None")
+
+    if not found:
+        print(f"Field ID {field_id} not found for producer {producer_id} in JSON data.")
 
 # Example usage
-field_id = "3d72c0ce-c16c-48c0-be8c-384a0dcaff68"
-season_id = get_season_id(field_id)
-print(season_id)
-affected_rows = insert_harvest_event(commodityId=2, eventId=5, doneAt="2024-10-03", yield_value=23.4705479706396, seasonId=season_id)
-print(f"Affected Rows: {affected_rows}")
+producer_id = "7b227522-8f36-4ecf-8bb7-1ad98d4d6c8c"  # Example producer ID
+field_ids = ["3d72c0ce-c16c-48c0-be8c-384a0dcaff68", "76e43cc9-2e2a-47e8-a5ae-baaefbdf0c84"]
 
+for field_id in field_ids:
+    parse_harvest_events(producer_id, field_id)  # Call the new function with producer_id and field_id
 
