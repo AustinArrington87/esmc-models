@@ -5,7 +5,7 @@ import json
 c = mrv.configure(".env.production")
 
 # Your Hasura admin secret key
-admin_secret_key = "EnterSecret"
+admin_secret_key = "EnterKey"
 
 # Set up the headers with the Hasura admin secret
 headers = {
@@ -19,7 +19,8 @@ url = "https://graphql.ecoharvest.ag/v1/graphql"
 # Mapping of crop types to commodity IDs
 crop_type_to_id = {
     "Soybeans": 2,
-    "Winter Wheat": 3
+    "Winter Wheat": 3,
+    "Sorghum": 10
 }
 
 # list projects 
@@ -42,10 +43,10 @@ AGIProducers = mrv.enrolledProducers(AGIprojId, 2023)
 williamsFields = mrv.fieldSummary('7b227522-8f36-4ecf-8bb7-1ad98d4d6c8c', 2023)
 #print(williamsFields)
 # P Rinehart - '3d72c0ce-c16c-48c0-be8c-384a0dcaff68' ✓
-# K Rinehart - '76e43cc9-2e2a-47e8-a5ae-baaefbdf0c84' 
+# K Rinehart - '76e43cc9-2e2a-47e8-a5ae-baaefbdf0c84' ✓
 # Soybeans harvested 2023-10-09, 21.04690989 bu/ac + '' harvested 2024-06-16 213.1069567 bua/acre + Winter Wheat harvested 2024-06-17 10.8198256 bu/acre
-# P Rinehart West - '07206026-bd14-4732-b82a-1657dc68e3fa' -- missing the partner_field_id
-# Smith West - '37a2f972-90c5-40c9-a5f1-56d5f8768e27'
+# P Rinehart West - '07206026-bd14-4732-b82a-1657dc68e3fa' ✓ -- missing the partner_field_id, also empty yield Sorghum 
+# Smith West - '37a2f972-90c5-40c9-a5f1-56d5f8768e27' ✓
 
 ballFields = mrv.fieldSummary('63b36320-8e38-454f-97c9-e4dcb3510d61', 2023)
 #print(ballFields)
@@ -185,7 +186,7 @@ def parse_harvest_events(producer_id, field_id):
 
 # Example usage
 producer_id = "7b227522-8f36-4ecf-8bb7-1ad98d4d6c8c"  # Example producer ID
-field_ids = ["3d72c0ce-c16c-48c0-be8c-384a0dcaff68", "76e43cc9-2e2a-47e8-a5ae-baaefbdf0c84"]
+field_ids = ["3d72c0ce-c16c-48c0-be8c-384a0dcaff68", "76e43cc9-2e2a-47e8-a5ae-baaefbdf0c84", "07206026-bd14-4732-b82a-1657dc68e3fa", "37a2f972-90c5-40c9-a5f1-56d5f8768e27"]
 
 for field_id in field_ids:
     parse_harvest_events(producer_id, field_id)  # Call the new function with producer_id and field_id
