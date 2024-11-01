@@ -5,7 +5,7 @@ import csv
 
 # Global variables
 url = "https://graphql.ecoharvest.ag/v1/graphql"
-admin_secret_key = "EnterHasuraSecret"
+admin_secret_key = "EnterKey"
 
 # Set up the headers with the Hasura admin secret
 headers = {
@@ -62,7 +62,7 @@ def fetch_field_details(abbr="%", year=None):
     query = """
     query FieldDetails($abbr: String = "%", $year: smallint!) {
       farmField(where: {
-        many_field_has_many_practice_changes: {practice_change: {abbreviation: {_neq: "PE"}}, year: {_eq: $year}}, 
+        many_field_has_many_practice_changes: {practice_change: {abbreviation: {_nin: ["PE", "UE"]}}, year: {_eq: $year}}, 
         seasons: {year: {_eq: $year}},
         farmer_project_fields: {farmer_project: {project: {abbreviation: {_ilike: $abbr}}}}
       }) {
@@ -160,6 +160,7 @@ def fetch_acres_summary(year):
     query = """
     query FieldAcres($abbr: String, $year: smallint!) {
       farmField(where: {
+        many_field_has_many_practice_changes: {practice_change: {abbreviation: {_nin: ["PE", "UE"]}}, year: {_eq: $year}},
         seasons: {year: {_eq: $year}},
         farmer_project_fields: {farmer_project: {project: {abbreviation: {_ilike: $abbr}}}}
       }) {
