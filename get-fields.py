@@ -1,15 +1,59 @@
 import requests
 import json
 from pathlib import Path
+import csv
 
 # Global variables
 url = "https://graphql.ecoharvest.ag/v1/graphql"
-admin_secret_key = "EnterSecret"
+admin_secret_key = "EnterHasuraSecret"
 
 # Set up the headers with the Hasura admin secret
 headers = {
     "Content-Type": "application/json",
     "x-hasura-admin-secret": admin_secret_key
+}
+
+project_names = {
+    "SNW": "Sustainable NW",
+    "GC": "Great Lakes Project",
+    "GM-NE": "General Mills-Native Energy",
+    "BRANDY": "Brandywine-Christina Pilot",
+    "LANCPA": "Lancaster Pilot",
+    "SHENVA": "Shenandoah Valley Pilot",
+    "MDLZ": "Mondelez Wheat",
+    "TNCWF": "TNC/WWF (Northern Great Plains)",
+    "TNCOH": "TNC Ohio",
+    "PNWWA": "Pacific NW (WA)",
+    "SN": "Syngenta-Nutrien",
+    "NAL": "NASA Ag Lab",
+    "SLM": "SLM Partners",
+    "MOCS": "Missouri Partnership Pilot",
+    "AGIP": "AGI SGP Pipeline",
+    "NPC": "Northern Plains Cropping",
+    "NJ_RCD": "New Jersey Resource and Conservation Department",
+    "CTNUSCTP": "Cotton USCTP",
+    "CIFCSC": "CIF Climate Smart",
+    "LT": "Laura Test",
+    "PGT": "PG Test Project",
+    "KC": "Kimberly-Clark",
+    "NGP-PFQF": "NGP-PFQF Research",
+    "NPCRED": "Northern Plains Cropping Reductions Accounting",
+    "SGPNACDP": "SGP-NACD Pilot",
+    "NACDSGP": "NACD SGP Market",
+    "SGP": "Southern Great Plains",
+    "CN": "Corteva",
+    "TNCNE": "TNC Nebraska",
+    "FJFCSC": "FJF CSC Grazing",
+    "SOR": "Sorghum",
+    "CTNMNU": "Cotton Manulife",
+    "CNFA": "CA Nut Fruit (Almond Board)",
+    "MOBIO": "Missouri Biodiversity Pilot",
+    "NGPNACDP": "NGP-NACD Pipeline",
+    "KSBD": "Kansas PFQF Biodiversity",
+    "DAIRY": "Trinkler Dairy",
+    "NGPNACDM": "NGP-NACD Market",
+    "TNCMN": "TNC Minnesota",
+    "AGIM": "AGI SGP Market"
 }
 
 # Function to fetch field details based on abbreviation and year
@@ -24,6 +68,7 @@ def fetch_field_details(abbr="%", year=None):
       }) {
         id
         name
+        acres
         boundary
         boundaryArray
         subboundaries
@@ -109,362 +154,98 @@ def fetch_field_details(abbr="%", year=None):
         print(response.text)
         return None
 
+# Function to fetch and sum acres for each project abbreviation
+def fetch_acres_summary(year):
+    # Define the GraphQL query to fetch acres and project name
+    query = """
+    query FieldAcres($abbr: String, $year: smallint!) {
+      farmField(where: {
+        seasons: {year: {_eq: $year}},
+        farmer_project_fields: {farmer_project: {project: {abbreviation: {_ilike: $abbr}}}}
+      }) {
+        acres
+        farmer_project_fields {
+          farmer_project {
+            project {
+              name
+              abbreviation
+              id
+            }
+          }
+        }
+      }
+    }
+    """
+
+    # List to store summary data
+    summary_data = []
+
+    # Loop through each project abbreviation and name
+    for abbr, full_name in project_names.items():
+        # Define variables for each project
+        variables = {
+            "abbr": abbr,
+            "year": year
+        }
+
+        # Send the request with the query and variables
+        response = requests.post(url, json={'query': query, 'variables': variables}, headers=headers)
+
+        # Process the response
+        if response.status_code == 200:
+            response_data = response.json()
+            
+            # Extract acres and count fields
+            total_acres = 0
+            field_count = 0
+            
+            for field in response_data["data"]["farmField"]:
+                acres = field.get("acres")
+                if acres is not None:
+                    total_acres += acres
+                    field_count += 1
+
+            # Only add data to the summary if field_count is greater than 0
+            if field_count > 0:
+                summary_data.append({
+                    "project_abbreviation": abbr,
+                    "project_name": full_name,
+                    "field_count": field_count,
+                    "total_acres": total_acres,
+                    "year": year
+                })
+        else:
+            print(f"Query failed for project {abbr} with status code {response.status_code}")
+            print(response.text)
+
+    # Sort summary data alphabetically by project_abbreviation
+    summary_data = sorted(summary_data, key=lambda x: x["project_abbreviation"])
+
+    # Write summary data to a CSV file
+    csv_file_path = Path(f"project_acres_summary_{year}.csv")
+    with open(csv_file_path, mode="w", newline="") as csv_file:
+        fieldnames = ["project_abbreviation", "project_name", "field_count", "total_acres", "year"]
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        
+        writer.writeheader()
+        for row in summary_data:
+            writer.writerow(row)
+    
+    print(f"CSV saved: {csv_file_path}")
+
 # Example usage
-abbr_value = "KC"  # Replace with the desired abbreviation
+abbr_value = "CIFCSC"  # Replace with the desired abbreviation
 year_value = 2024  # Replace with the desired year
 
+# EXPORT FIELDS 
 field_details = fetch_field_details(abbr=abbr_value, year=year_value)
 print(field_details)
+
+# EXPORT PROJECT ACRES
+#fetch_acres_summary(year=year_value)
+
 # get project ID 
 
 #mrv.projectFieldBoundaries('CIFCSC', 2024)
 
 #producerFieldBoundaries(producerId,year)
-
-
-# Project abbreviations 
-
-# {
-#   "esmcProject": [
-#     {
-#       "name": "Simplot",
-#       "abbreviation": "SMP"
-#     },
-#     {
-#       "name": "Austin-Test-2",
-#       "abbreviation": "AT2"
-#     },
-#     {
-#       "name": "Chris Demo",
-#       "abbreviation": "CD"
-#     },
-#     {
-#       "name": "CIF Test Project",
-#       "abbreviation": "CIF_TEST"
-#     },
-#     {
-#       "name": "Jake-Test-1",
-#       "abbreviation": "JMDTEST"
-#     },
-#     {
-#       "name": "SustainCERT Project",
-#       "abbreviation": "SCT"
-#     },
-#     {
-#       "name": "Texan by Nature",
-#       "abbreviation": "TBN"
-#     },
-#     {
-#       "name": "Sustainable NW",
-#       "abbreviation": "SNW"
-#     },
-#     {
-#       "name": "GLRI CTIC",
-#       "abbreviation": "GC"
-#     },
-#     {
-#       "name": "General Mills-Native Energy",
-#       "abbreviation": "GM-NE"
-#     },
-#     {
-#       "name": "Brandywine-Christina Pilot",
-#       "abbreviation": "BRANDY"
-#     },
-#     {
-#       "name": "Lancaster Pilot",
-#       "abbreviation": "LANCPA"
-#     },
-#     {
-#       "name": "DemoProject4",
-#       "abbreviation": "RX57"
-#     },
-#     {
-#       "name": "Regrow test project",
-#       "abbreviation": "REGROW"
-#     },
-#     {
-#       "name": "Pacific NW (OR)",
-#       "abbreviation": "PNWOR"
-#     },
-#     {
-#       "name": "SLM Demo",
-#       "abbreviation": "SLM-D"
-#     },
-#     {
-#       "name": "The Fertilizer Institute (TFI)",
-#       "abbreviation": "TFI"
-#     },
-#     {
-#       "name": "Corteva--Archived 2",
-#       "abbreviation": "CNA2"
-#     },
-#     {
-#       "name": "Corteva--Archived",
-#       "abbreviation": "CNA"
-#     },
-#     {
-#       "name": "NCBA",
-#       "abbreviation": "NCBA"
-#     },
-#     {
-#       "name": "Farmobile",
-#       "abbreviation": "FM"
-#     },
-#     {
-#       "name": "Illinois Corn Growers",
-#       "abbreviation": "ICG"
-#     },
-#     {
-#       "name": "Shenandoah Valley Pilot",
-#       "abbreviation": "SHENVA"
-#     },
-#     {
-#       "name": "Mondelez Wheat",
-#       "abbreviation": "MDLZ"
-#     },
-#     {
-#       "name": "Producer Circle",
-#       "abbreviation": "PC"
-#     },
-#     {
-#       "name": "Regrow",
-#       "abbreviation": "RGW"
-#     },
-#     {
-#       "name": "Michelle-test",
-#       "abbreviation": "MLS-TEST"
-#     },
-#     {
-#       "name": "TNC/WWF (Northern Great Plains)",
-#       "abbreviation": "TNCWF"
-#     },
-#     {
-#       "name": "TNC Ohio",
-#       "abbreviation": "TNCOH"
-#     },
-#     {
-#       "name": "Pacific NW (WA)",
-#       "abbreviation": "PNWWA"
-#     },
-#     {
-#       "name": "Silicon Ranch",
-#       "abbreviation": "SR"
-#     },
-#     {
-#       "name": "Syngenta-Nutrien",
-#       "abbreviation": "SN"
-#     },
-#     {
-#       "name": "NASA Ag Lab",
-#       "abbreviation": "NAL"
-#     },
-#     {
-#       "name": "SLM Partners",
-#       "abbreviation": "SLM"
-#     },
-#     {
-#       "name": "JLO Test Project GHG",
-#       "abbreviation": "JLO"
-#     },
-#     {
-#       "name": "Missouri Partnership Pilot",
-#       "abbreviation": "MOCS"
-#     },
-#     {
-#       "name": "AGI SGP Pipeline",
-#       "abbreviation": "AGIP"
-#     },
-#     {
-#       "name": "Northern Plains Cropping",
-#       "abbreviation": "NPC"
-#     },
-#     {
-#       "name": "z_test_Lisa",
-#       "abbreviation": "Z_TEST"
-#     },
-#     {
-#       "name": "Margarita-Test-Project",
-#       "abbreviation": "MTP"
-#     },
-#     {
-#       "name": "New Jersey Resource and Conservation Department",
-#       "abbreviation": "NJ_RCD"
-#     },
-#     {
-#       "name": "Cabbage Patch- Will Test",
-#       "abbreviation": "PATCH"
-#     },
-#     {
-#       "name": "John Deere",
-#       "abbreviation": "JD"
-#     },
-#     {
-#       "name": "Corteva-Test",
-#       "abbreviation": "CTT"
-#     },
-#     {
-#       "name": "ESMC-PM-Test",
-#       "abbreviation": "ESMCPM"
-#     },
-#     {
-#       "name": "ESMC-Test",
-#       "abbreviation": "ESMC"
-#     },
-#     {
-#       "name": "Test Project 10",
-#       "abbreviation": "TEST10"
-#     },
-#     {
-#       "name": "Cotton USCTP",
-#       "abbreviation": "CTNUSCTP"
-#     },
-#     {
-#       "name": "CIF Climate Smart",
-#       "abbreviation": "CIFCSC"
-#     },
-#     {
-#       "name": "Travis-Test1",
-#       "abbreviation": "TRAVTEST"
-#     },
-#     {
-#       "name": "Laura Test",
-#       "abbreviation": "LT"
-#     },
-#     {
-#       "name": "PG-Test-Project",
-#       "abbreviation": "PGT"
-#     },
-#     {
-#       "name": "Kimberly-Clark",
-#       "abbreviation": "KC"
-#     },
-#     {
-#       "name": "Coop Elev Demo",
-#       "abbreviation": "COOPDEMO"
-#     },
-#     {
-#       "name": "NGP-PFQF Research",
-#       "abbreviation": "NGP-PFQF"
-#     },
-#     {
-#       "name": "Northern Plains Cropping Reductions Accounting",
-#       "abbreviation": "NPCRED"
-#     },
-#     {
-#       "name": "Z Test Lisa",
-#       "abbreviation": "ZTESTLIS"
-#     },
-#     {
-#       "name": "G's EoY test project",
-#       "abbreviation": "EOYTEST"
-#     },
-#     {
-#       "name": "All Scopes and Assets/Credits",
-#       "abbreviation": "All"
-#     },
-#     {
-#       "name": "SGP-NACD Pilot",
-#       "abbreviation": "SGPNACDP"
-#     },
-#     {
-#       "name": "Data Modeling",
-#       "abbreviation": "DATAAPI"
-#     },
-#     {
-#       "name": "Test Default Project",
-#       "abbreviation": "TDP"
-#     },
-#     {
-#       "name": "Austin-Test-1",
-#       "abbreviation": "AT1"
-#     },
-#     {
-#       "name": "Austin-Test-3",
-#       "abbreviation": "AT3"
-#     },
-#     {
-#       "name": "Austin-Test-5",
-#       "abbreviation": "AT5"
-#     },
-#     {
-#       "name": "Historical Fields",
-#       "abbreviation": "HSF"
-#     },
-#     {
-#       "name": "Jake-Test 2",
-#       "abbreviation": "JDTEST2"
-#     },
-#     {
-#       "name": "NACD SGP Market",
-#       "abbreviation": "NACDSGP"
-#     },
-#     {
-#       "name": "Southern Great Plains",
-#       "abbreviation": "SGP"
-#     },
-#     {
-#       "name": "Corteva",
-#       "abbreviation": "CN"
-#     },
-#     {
-#       "name": "TNC Nebraska",
-#       "abbreviation": "TNCNE"
-#     },
-#     {
-#       "name": "FJF CSC Grazing",
-#       "abbreviation": "FJFCSC"
-#     },
-#     {
-#       "name": "Sorghum",
-#       "abbreviation": "SOR"
-#     },
-#     {
-#       "name": "Cotton Manulife",
-#       "abbreviation": "CTNMNU"
-#     },
-#     {
-#       "name": "CA Nut Fruit (Almond Board)",
-#       "abbreviation": "CNFA"
-#     },
-#     {
-#       "name": "Missouri Biodiversity Pilot",
-#       "abbreviation": "MOBIO"
-#     },
-#     {
-#       "name": "NGP-NACD Pipeline",
-#       "abbreviation": "NGPNACDP"
-#     },
-#     {
-#       "name": "Benson Hill",
-#       "abbreviation": "BH"
-#     },
-#     {
-#       "name": "AGI SGP Research",
-#       "abbreviation": "AGIR"
-#     },
-#     {
-#       "name": "Kansas PFQF Biodiversity",
-#       "abbreviation": "KSBD"
-#     },
-#     {
-#       "name": "Trinkler Dairy",
-#       "abbreviation": "DAIRY"
-#     },
-#     {
-#       "name": "NGP-NACD Market",
-#       "abbreviation": "NGPNACDM"
-#     },
-#     {
-#       "name": "TNC Minnesota",
-#       "abbreviation": "TNCMN"
-#     },
-#     {
-#       "name": "Corteva-Nutrien",
-#       "abbreviation": "C-NUT"
-#     },
-#     {
-#       "name": "AGI SGP Market",
-#       "abbreviation": "AGIM"
-#     }
-#   ]
-# }
