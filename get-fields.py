@@ -2,10 +2,11 @@ import requests
 import json
 from pathlib import Path
 import csv
+import pandas as pd
 
 # Global variables
 url = "https://graphql.ecoharvest.ag/v1/graphql"
-admin_secret_key = "EnterKey"
+admin_secret_key = "EnterSecret"
 
 # Set up the headers with the Hasura admin secret
 headers = {
@@ -164,7 +165,14 @@ def fetch_acres_summary(year):
         seasons: {year: {_eq: $year}},
         farmer_project_fields: {farmer_project: {project: {abbreviation: {_ilike: $abbr}}}}
       }) {
+        id
+        name
         acres
+        many_field_has_many_practice_changes {
+          practice_change {
+            abbreviation
+          }
+        }
         farmer_project_fields {
           farmer_project {
             project {
@@ -178,8 +186,9 @@ def fetch_acres_summary(year):
     }
     """
 
-    # List to store summary data
+    # List to store summary data and field-level data
     summary_data = []
+    field_level_data = []
 
     # Loop through each project abbreviation and name
     for abbr, full_name in project_names.items():
@@ -202,11 +211,25 @@ def fetch_acres_summary(year):
             
             for field in response_data["data"]["farmField"]:
                 acres = field.get("acres")
+                practice_changes = [pc["practice_change"]["abbreviation"] for pc in field["many_field_has_many_practice_changes"]]
+                practice_change = ", ".join(practice_changes) if practice_changes else "None"
+                
                 if acres is not None:
                     total_acres += acres
                     field_count += 1
 
-            # Only add data to the summary if field_count is greater than 0
+                # Append field-level data
+                field_level_data.append({
+                    "project_abbreviation": abbr,
+                    "project_name": full_name,
+                    "field_id": field["id"],
+                    "field_name": field["name"],
+                    "acres": acres,
+                    "practice_change": practice_change,
+                    "year": year
+                })
+
+            # Only add project-level data if field_count is greater than 0
             if field_count > 0:
                 summary_data.append({
                     "project_abbreviation": abbr,
@@ -222,28 +245,28 @@ def fetch_acres_summary(year):
     # Sort summary data alphabetically by project_abbreviation
     summary_data = sorted(summary_data, key=lambda x: x["project_abbreviation"])
 
-    # Write summary data to a CSV file
-    csv_file_path = Path(f"project_acres_summary_{year}.csv")
-    with open(csv_file_path, mode="w", newline="") as csv_file:
-        fieldnames = ["project_abbreviation", "project_name", "field_count", "total_acres", "year"]
-        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-        
-        writer.writeheader()
-        for row in summary_data:
-            writer.writerow(row)
-    
-    print(f"CSV saved: {csv_file_path}")
+    # Create DataFrames for both summary and field-level data
+    summary_df = pd.DataFrame(summary_data)
+    field_level_df = pd.DataFrame(field_level_data)
+
+    # Write data to an Excel file with two sheets
+    excel_file_path = Path(f"project_acres_summary_{year}.xlsx")
+    with pd.ExcelWriter(excel_file_path) as writer:
+        summary_df.to_excel(writer, sheet_name="Project Summary", index=False)
+        field_level_df.to_excel(writer, sheet_name="Field Level Details", index=False)
+
+    print(f"Excel file saved: {excel_file_path}")
 
 # Example usage
 abbr_value = "CIFCSC"  # Replace with the desired abbreviation
 year_value = 2024  # Replace with the desired year
 
 # EXPORT FIELDS 
-field_details = fetch_field_details(abbr=abbr_value, year=year_value)
-print(field_details)
+#field_details = fetch_field_details(abbr=abbr_value, year=year_value)
+#print(field_details)
 
 # EXPORT PROJECT ACRES
-#fetch_acres_summary(year=year_value)
+fetch_acres_summary(year=year_value)
 
 # get project ID 
 
