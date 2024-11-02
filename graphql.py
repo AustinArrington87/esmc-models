@@ -5,7 +5,7 @@ import json
 c = mrv.configure(".env.production")
 
 # Your Hasura admin secret key
-admin_secret_key = "EnterKey"
+admin_secret_key = "EnterSecret"
 
 # Set up the headers with the Hasura admin secret
 headers = {
@@ -24,17 +24,22 @@ crop_type_to_id = {
 }
 
 # list projects 
-projects = mrv.projects()
+#projects = mrv.projects()
 #print(projects)
 # get project ID 
-AGIprojId = mrv.projectId('AGI SGP Market')
+#AGIprojId = mrv.projectId('AGI SGP Market')
 #print(AGIprojId)
 
-AGIProducers = mrv.enrolledProducers(AGIprojId, 2023)
+#AGIProducers = mrv.enrolledProducers(AGIprojId, 2023)
 # "partner_grower_id" in AGI
 # "partner_field_id" in AGI
-
 #print(AGIProducers)
+
+#AustinProducers = mrv.enrolledProducers('18a4db70-209d-4a93-87a9-ab3ff315fd14', 2024)
+#print(AustinProducers)
+
+#BarringtonFields = mrv.fieldSummary('1a8b2fd2-5a46-4d70-8a54-952871f43fca', 2024)
+#print(BarringtonFields) 
 
 # '7b227522-8f36-4ecf-8bb7-1ad98d4d6c8c' - J. WILLIAMS 
 # '63b36320-8e38-454f-97c9-e4dcb3510d61' - T. Ball
@@ -184,10 +189,117 @@ def parse_harvest_events(producer_id, field_id):
     if not found:
         print(f"Field ID {field_id} not found for producer {producer_id} in JSON data.")
 
-# Example usage
-producer_id = "7b227522-8f36-4ecf-8bb7-1ad98d4d6c8c"  # Example producer ID
-field_ids = ["3d72c0ce-c16c-48c0-be8c-384a0dcaff68", "76e43cc9-2e2a-47e8-a5ae-baaefbdf0c84", "07206026-bd14-4732-b82a-1657dc68e3fa", "37a2f972-90c5-40c9-a5f1-56d5f8768e27"]
 
-for field_id in field_ids:
-    parse_harvest_events(producer_id, field_id)  # Call the new function with producer_id and field_id
+### FERTILIZER APPLICATIONS 
+
+# Function to insert events across multiple seasons without fertilizer details
+def insert_event_multiple_seasons(eventId, seasonIds, doneAt):
+    # Define the mutation with only the core fields
+    event_mutation = """
+    mutation insertEventData($eventId: Int, $seasonId: uuid, $doneAt: date) {
+      insertFarmEventData(objects: {
+        eventId: $eventId,
+        doneAt: $doneAt,
+        seasonId: $seasonId
+      }) {
+        affected_rows
+      }
+    }
+    """
+
+    total_affected_rows = 0
+
+    # Loop over each seasonId and execute the mutation
+    for seasonId in seasonIds:
+        # Define the variables for each season
+        event_variables = {
+            "eventId": eventId,
+            "seasonId": seasonId,
+            "doneAt": doneAt
+        }
+
+        # Send the request with the mutation and variables
+        response = requests.post(url, json={'query': event_mutation, 'variables': event_variables}, headers=headers)
+
+        # Process the response
+        if response.status_code == 200:
+            response_data = response.json()
+            
+            # Check for errors in the response
+            if 'errors' in response_data:
+                print(f"Mutation failed for seasonId {seasonId} with errors: {response_data['errors']}")
+            else:
+                # Access the data and accumulate affected rows if no errors
+                affected_rows = response_data['data']['insertFarmEventData']['affected_rows']
+                total_affected_rows += affected_rows
+                print(f"Mutation successful for seasonId {seasonId}! Rows affected: {affected_rows}")
+        else:
+            print(f"HTTP request failed for seasonId {seasonId} with status code {response.status_code}")
+            print(response.text)
+
+    print(f"Total rows affected across all seasons: {total_affected_rows}")
+    return total_affected_rows
+
+######################################## 
+
+################################################
+# Example usage - Fertilizer application 
+
+# Get season_ids 
+#'1be67eef-fe42-493d-b0d4-957b379d4621', 'name': 'anne-1'
+# 'id': '97e81cfb-44cc-4dc2-a4fa-3ef99d4eaa3a', 'name': 'anne-2'  
+#'ed4c5739-bf87-4348-86ea-c35e0e289c37', 'name': 'bad-demo-field'
+# {'id': '0ddf6d8f-b960-4fc1-9da3-4ed2a5575a07', 'name': 'Custom Year_Demo'
+
+seasons = []
+fields = ['1be67eef-fe42-493d-b0d4-957b379d4621', '97e81cfb-44cc-4dc2-a4fa-3ef99d4eaa3a', 'ed4c5739-bf87-4348-86ea-c35e0e289c37', '0ddf6d8f-b960-4fc1-9da3-4ed2a5575a07']
+for f in fields:
+    season_id = get_season_id(f, 2024)
+    seasons.append(season_id)
+
+# Example usage
+event_id = 11  # Event ID for the application event
+season_ids = seasons  # Replace with actual season IDs (UUID format)
+done_at = "2024-10-04"  # Date of application
+
+# Call the function to insert the event for multiple seasons
+total_rows_affected = insert_event_multiple_seasons(
+    eventId=event_id,
+    seasonIds=season_ids,
+    doneAt=done_at
+)
+print(f"Total rows affected: {total_rows_affected}")
+
+##################
+# Example usage
+# event_id = 11  # Event ID for fertilizer application
+# season_ids = seasons  # Replace with actual season IDs (UUID format)
+# done_at = "2024-10-04"  # Date of application
+# fertilizer_id = 3  # Existing fertilizer ID
+# rate = 6000  # Application rate in appropriate units
+# liquid_density = 8.3  # Density in g/cm³ for Dairy Cattle Slurry
+# application_method_id = 3  # Application method ID for Broadcast
+
+# # Call the function to insert the fertilizer event with nested fertilizer_datum details
+# total_rows_affected = insert_fertilizer_event(
+#     eventId=event_id,
+#     seasonIds=seasons,
+#     doneAt=done_at,
+#     fertilizerId=fertilizer_id,
+#     rate=rate,
+#     liquidDensity=liquid_density,
+#     applicationMethodId=application_method_id
+# )
+
+# print(f"Total rows affected: {total_rows_affected}")
+
+################################################
+
+# Example usage -- Harvest events 
+# producer_id = "7b227522-8f36-4ecf-8bb7-1ad98d4d6c8c"  # Example producer ID
+# field_ids = ["3d72c0ce-c16c-48c0-be8c-384a0dcaff68", "76e43cc9-2e2a-47e8-a5ae-baaefbdf0c84", "07206026-bd14-4732-b82a-1657dc68e3fa", "37a2f972-90c5-40c9-a5f1-56d5f8768e27"]
+
+# # Call the new function with producer_id and field_id
+# for field_id in field_ids:
+#     parse_harvest_events(producer_id, field_id)  
 
