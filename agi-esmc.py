@@ -1,6 +1,7 @@
 import mrvApi as mrv
 import requests
 import json
+import uuid
 
 c = mrv.configure(".env.production")
 
@@ -200,9 +201,10 @@ def parse_harvest_events(producer_id, field_id, specific_year=None):
 
 ### FERTILIZER APPLICATIONS 
 
-# Function to insert events across multiple seasons without fertilizer details
+######################################## 
+# Function to insert events across multiple seasons with fertilizer details
+# Step 1: Insert core event details
 def insert_event_multiple_seasons(eventId, seasonIds, doneAt):
-    # Define the mutation with only the core fields
     event_mutation = """
     mutation insertEventData($eventId: Int, $seasonId: uuid, $doneAt: date) {
       insertFarmEventData(objects: {
@@ -210,45 +212,96 @@ def insert_event_multiple_seasons(eventId, seasonIds, doneAt):
         doneAt: $doneAt,
         seasonId: $seasonId
       }) {
-        affected_rows
+        returning {
+          id  # Retrieve the ID for further operations
+        }
       }
     }
     """
-
-    total_affected_rows = 0
-
-    # Loop over each seasonId and execute the mutation
+    
+    event_ids = []
+    
     for seasonId in seasonIds:
-        # Define the variables for each season
-        event_variables = {
+        variables = {
             "eventId": eventId,
             "seasonId": seasonId,
             "doneAt": doneAt
         }
-
-        # Send the request with the mutation and variables
-        response = requests.post(url, json={'query': event_mutation, 'variables': event_variables}, headers=headers)
-
-        # Process the response
+        
+        response = requests.post(url, json={'query': event_mutation, 'variables': variables}, headers=headers)
+        
         if response.status_code == 200:
             response_data = response.json()
-            
-            # Check for errors in the response
             if 'errors' in response_data:
                 print(f"Mutation failed for seasonId {seasonId} with errors: {response_data['errors']}")
             else:
-                # Access the data and accumulate affected rows if no errors
-                affected_rows = response_data['data']['insertFarmEventData']['affected_rows']
-                total_affected_rows += affected_rows
-                print(f"Mutation successful for seasonId {seasonId}! Rows affected: {affected_rows}")
+                event_id = response_data['data']['insertFarmEventData']['returning'][0]['id']
+                event_ids.append((seasonId, event_id))
+                print(f"Event created for seasonId {seasonId} with event ID: {event_id}")
         else:
             print(f"HTTP request failed for seasonId {seasonId} with status code {response.status_code}")
             print(response.text)
+    
+    return event_ids
 
-    print(f"Total rows affected across all seasons: {total_affected_rows}")
+# Step 2: Function to insert fertilizer details with a generated UUID
+def insert_fertilizer_details(event_ids, applicationMethodId, fertilizerId, fertilizerCategoryId, rate, liquidDensity):
+    # Mutation to insert fertilizer details with a client-generated ID
+    fertilizer_mutation = """
+    mutation insertFertilizerDetails(
+        $id: uuid,
+        $applicationMethodId: smallint,
+        $fertilizerId: smallint,
+        $fertilizerCategoryId: String,
+        $rate: numeric,
+        $liquidDensity: numeric
+    ) {
+      insertFarmFertilizerData(objects: {
+        id: $id,
+        applicationMethodId: $applicationMethodId,
+        fertilizerId: $fertilizerId,
+        fertilizerCategoryId: $fertilizerCategoryId,
+        rate: $rate,
+        liquidDensity: $liquidDensity
+      }) {
+        affected_rows
+      }
+    }
+    """
+    
+    total_affected_rows = 0
+    
+    for seasonId, eventId in event_ids:
+        # Generate a unique ID for each fertilizer entry
+        unique_id = str(uuid.uuid4())
+        
+        variables = {
+            "id": unique_id,
+            "applicationMethodId": applicationMethodId,
+            "fertilizerId": fertilizerId,
+            "fertilizerCategoryId": fertilizerCategoryId,
+            "rate": rate,
+            "liquidDensity": liquidDensity
+        }
+        
+        response = requests.post(url, json={'query': fertilizer_mutation, 'variables': variables}, headers=headers)
+        
+        if response.status_code == 200:
+            response_data = response.json()
+            if 'errors' in response_data:
+                print(f"Failed to insert fertilizer details for seasonId {seasonId} with errors: {response_data['errors']}")
+            else:
+                affected_rows = response_data['data']['insertFarmFertilizerData']['affected_rows']
+                total_affected_rows += affected_rows
+                print(f"Fertilizer details added for seasonId {seasonId}! Rows affected: {affected_rows}")
+        else:
+            print(f"HTTP request failed for fertilizer data with status code {response.status_code}")
+            print(response.text)
+    
+    print(f"Total fertilizer rows affected: {total_affected_rows}")
     return total_affected_rows
 
-######################################## 
+
 
 ################################################
 # Example usage - Fertilizer application 
@@ -265,53 +318,43 @@ for f in fields:
     season_id = get_season_id(f, 2024)
     seasons.append(season_id)
 
-# Example usage - empty fert events no detials 
-event_id = 11  # Event ID for the application event
-season_ids = seasons  # Replace with actual season IDs (UUID format)
-done_at = "2024-10-04"  # Date of application
-
-# Call the function to insert the event for multiple seasons -- with ferttilizer details 
-# total_rows_affected = insert_event_multiple_seasons(
-#     eventId=event_id,
-#     seasonIds=season_ids,
-#     doneAt=done_at
-# )
-# print(f"Total rows affected: {total_rows_affected}")
 
 ##################
-# Example usage
-# event_id = 11  # Event ID for fertilizer application
-# season_ids = seasons  # Replace with actual season IDs (UUID format)
-# done_at = "2024-10-04"  # Date of application
-# fertilizer_id = 3  # Existing fertilizer ID
-# rate = 6000  # Application rate in appropriate units
-# liquid_density = 8.3  # Density in g/cm³ for Dairy Cattle Slurry
-# application_method_id = 3  # Application method ID for Broadcast
+# Example usage of creating events and then inserting fertilizer details
+season_ids = seasons  # Example season IDs
+event_id = 11  # Event ID for application
+done_at = "2024-10-04"  # Application date
+application_method_id = 3  # Application method ID
+fertilizer_id = 3  # Fertilizer ID
+fertilizer_category_id = 'Organic'  # Fertilizer category
+rate = 6000  # Application rate
+liquid_density = 8.3  # Liquid density
 
-# # Call the function to insert the fertilizer event with nested fertilizer_datum details
-# total_rows_affected = insert_fertilizer_event(
-#     eventId=event_id,
-#     seasonIds=seasons,
-#     doneAt=done_at,
-#     fertilizerId=fertilizer_id,
-#     rate=rate,
-#     liquidDensity=liquid_density,
-#     applicationMethodId=application_method_id
-# )
+# Step 1: Create events and get their IDs
+created_event_ids = insert_event_multiple_seasons(event_id, season_ids, done_at)
 
-# print(f"Total rows affected: {total_rows_affected}")
+# Step 2: Use event IDs to add fertilizer details
+total_rows_affected = insert_fertilizer_details(
+    created_event_ids,
+    applicationMethodId=application_method_id,
+    fertilizerId=fertilizer_id,
+    fertilizerCategoryId=fertilizer_category_id,
+    rate=rate,
+    liquidDensity=liquid_density
+)
 
+print(f"Total rows affected in fertilizer details: {total_rows_affected}")
 ################################################
 
 # Example usage -- Harvest events 
-producer_id = "7b227522-8f36-4ecf-8bb7-1ad98d4d6c8c"  # Example producer ID
+producer_id = "7b227522-8f36-4ecf-8bb7-1ad98d4d6c8c"  # Example producer ID - AGI
 field_ids = ["3d72c0ce-c16c-48c0-be8c-384a0dcaff68", "76e43cc9-2e2a-47e8-a5ae-baaefbdf0c84", "07206026-bd14-4732-b82a-1657dc68e3fa", "37a2f972-90c5-40c9-a5f1-56d5f8768e27"]
 
-# Call the new function with producer_id and field_id
-for field_id in field_ids:
-    #parse_harvest_events(producer_id, field_id)  
-    # Call to process only for the year 2024
-    parse_harvest_events(producer_id, field_id, specific_year=2024)
+# # Call the new function with producer_id and field_id
+# for field_id in field_ids:
+#     #parse_harvest_events(producer_id, field_id)  
+#     # Call to process only for the year 2024
+#     parse_harvest_events(producer_id, field_id, specific_year=2024)
 
 # P Rinehart - '3d72c0ce-c16c-48c0-be8c-384a0dcaff68' ✓
 # K Rinehart - '76e43cc9-2e2a-47e8-a5ae-baaefbdf0c84' ✓
