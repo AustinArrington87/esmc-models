@@ -24,52 +24,8 @@ crop_type_to_id = {
     "Sorghum": 10
 }
 
-# list projects 
-#projects = mrv.projects()
-#print(projects)
-# get project ID 
-#AGIprojId = mrv.projectId('AGI SGP Market')
-#print(AGIprojId)
-
-#AGIProducers = mrv.enrolledProducers(AGIprojId, 2023)
-# "partner_grower_id" in AGI
-# "partner_field_id" in AGI
-#print(AGIProducers)
-
-#AustinProducers = mrv.enrolledProducers('18a4db70-209d-4a93-87a9-ab3ff315fd14', 2024)
-#print(AustinProducers)
-
-#BarringtonFields = mrv.fieldSummary('1a8b2fd2-5a46-4d70-8a54-952871f43fca', 2024)
-#print(BarringtonFields) 
-
-# '7b227522-8f36-4ecf-8bb7-1ad98d4d6c8c' - J. WILLIAMS 
-# '63b36320-8e38-454f-97c9-e4dcb3510d61' - T. Ball
-# '37459734-03ac-4b4f-95c0-bb4311beb121' - T. Langford 
-
-williamsFields = mrv.fieldSummary('7b227522-8f36-4ecf-8bb7-1ad98d4d6c8c', 2023)
-#print(williamsFields)
-# P Rinehart - '3d72c0ce-c16c-48c0-be8c-384a0dcaff68' ✓
-# K Rinehart - '76e43cc9-2e2a-47e8-a5ae-baaefbdf0c84' ✓
-# Soybeans harvested 2023-10-09, 21.04690989 bu/ac + '' harvested 2024-06-16 213.1069567 bua/acre + Winter Wheat harvested 2024-06-17 10.8198256 bu/acre
-# P Rinehart West - '07206026-bd14-4732-b82a-1657dc68e3fa' ✓ -- missing the partner_field_id, also empty yield Sorghum 
-# Smith West - '37a2f972-90c5-40c9-a5f1-56d5f8768e27' ✓
-
-ballFields = mrv.fieldSummary('63b36320-8e38-454f-97c9-e4dcb3510d61', 2023)
-#print(ballFields)
-# Krueger W - 'fe325a21-4f88-42aa-8f81-122c9ca04aec'
-# Krueger E - '9d8feb4b-d87b-49c3-99f1-73839623267f'
-
-langfordFields = mrv.fieldSummary('37459734-03ac-4b4f-95c0-bb4311beb121', 2023)
-#print(langfordFields)
-# East of Goldie - 'ebfdbc2f-566a-4cf8-a6d6-19fece8ebe35'
-# Kevin Thomas - '6115fcad-56bf-44d9-9957-da03b6cc1a84'
-# Singletons - 'ba6184ab-31ee-4c20-b87a-1682704bca7a'
-
-# test Payload on Williams field "P Rinehart"
-########################
 
 # Pass in the fieldID and get the seasonID back 
-
 # Function to retrieve season_id based on fieldId and year
 def get_season_id(fieldId, year):
     # Define the query with a variable for `fieldId` and `year`
@@ -101,6 +57,122 @@ def get_season_id(fieldId, year):
         print(f"Query failed with status code {response.status_code}")
         print(response.text)
         return None
+
+#################################
+# Add Planting Event 
+def insert_plant_event(commodityId, eventId, doneAt, seasonId):
+    # Define the mutation
+    plant_mutation = """
+    mutation insertEventData($commodityId: Int, $eventId: Int, $doneAt: date, $seasonId: uuid) {
+      insertFarmEventData(objects: {commodityId: $commodityId, eventId: $eventId, doneAt: $doneAt, seasonId: $seasonId}) {
+        affected_rows
+      }
+    }
+    """
+
+    # Define the variables
+    plant_variables = {
+        "commodityId": commodityId,
+        "eventId": eventId,
+        "doneAt": doneAt,
+        "seasonId": seasonId
+    }
+
+    # Send the request
+    response = requests.post(url, json={'query': plant_mutation, 'variables': plant_variables}, headers=headers)
+    
+    if response.status_code == 200:
+        response_data = response.json()
+        if 'errors' not in response_data:
+            affected_rows = response_data['data']['insertFarmEventData']['affected_rows']
+            print(f"Plant event created successfully. Rows affected: {affected_rows}")
+            return affected_rows
+        else:
+            print(f"Failed to create plant event with errors: {response_data['errors']}")
+            return 0
+    else:
+        print(f"HTTP request failed with status code {response.status_code}")
+        print(response.text)
+        return 0
+
+def parse_planting_events(producer_id, field_id, specific_year=None):
+    with open('cpfrs_by_grower.json') as f:
+        data = json.load(f)
+
+    if producer_id not in data:
+        print(f"Producer ID {producer_id} not found in JSON data.")
+        return
+
+    # Create a set to track all processed events globally
+    all_processed_events = set()
+    
+    fields = data[producer_id]
+    found = False
+
+    for field in fields:
+        if field.get("partner_field_id") == field_id:
+            found = True
+            print(f"\nProcessing field_id: {field_id} for producer: {producer_id}")
+            field_events = field.get("field_events", [])
+            
+            if not field_events:
+                print(f"No events found for field_id: {field_id}")
+                return
+
+            print(f"Total field events found: {len(field_events)}")
+
+            for event in field_events:
+                crop_cycle_summaries = event.get("crop_cycle_summaries", {})
+                planting_list = crop_cycle_summaries.get("cash_crop_planting", [])  # Changed from "planting" to "cash_crop_planting"
+
+                print(f"\nProcessing planting list with {len(planting_list)} events")
+
+                for planting_event in planting_list:
+                    start_date = planting_event.get("start_date", "")
+                    crop_type = planting_event.get("crop_type", "")
+                    
+                    # Create a unique event identifier
+                    event_id = f"{field_id}_{start_date}_{crop_type}"
+
+                    print(f"\nConsidering event: {event_id}")
+
+                    if event_id in all_processed_events:
+                        print(f"Skipping duplicate event: {event_id}")
+                        continue
+
+                    # Add to processed set before processing
+                    all_processed_events.add(event_id)
+
+                    year = start_date.split("-")[0]
+                    
+                    # If specific_year is provided, skip events from other years
+                    if specific_year and int(year) != specific_year:
+                        print(f"Skipping event from year {year} (looking for {specific_year})")
+                        continue
+
+                    season_id = get_season_id(field_id, int(year))
+                    if not season_id:
+                        print(f"No season_id found for field {field_id} in year {year}")
+                        continue
+
+                    commodity_id = crop_type_to_id.get(crop_type)
+
+                    if commodity_id is not None:
+                        print(f"Processing planting event: {crop_type} on {start_date}")
+                        affected_rows = insert_plant_event(
+                            commodityId=commodity_id,
+                            eventId=1,  # Event ID for planting is 1
+                            doneAt=start_date.split("T")[0],
+                            seasonId=season_id
+                        )
+                        print(f"Affected Rows: {affected_rows}")
+                    else:
+                        print(f"Skipping: Commodity ID not found for crop type: {crop_type}")
+
+    if not found:
+        print(f"Field ID {field_id} not found for producer {producer_id}")
+
+    print(f"\nTotal unique events processed: {len(all_processed_events)}")
 
 ########################
 # Add Harvest Event Using Mutation 
@@ -411,11 +483,15 @@ liquid_density = 8.3
 producer_id = "7b227522-8f36-4ecf-8bb7-1ad98d4d6c8c"  # Example producer ID - AGI
 field_ids = ["3d72c0ce-c16c-48c0-be8c-384a0dcaff68", "76e43cc9-2e2a-47e8-a5ae-baaefbdf0c84", "07206026-bd14-4732-b82a-1657dc68e3fa", "37a2f972-90c5-40c9-a5f1-56d5f8768e27"]
 
+# events for T. Ball 
+#producer_id = '63b36320-8e38-454f-97c9-e4dcb3510d61'
+#field_ids = ['fe325a21-4f88-42aa-8f81-122c9ca04aec', '9d8feb4b-d87b-49c3-99f1-73839623267f']
 
 # Call the new function with producer_id and field_id
 for field_id in field_ids:
     #parse_harvest_events(producer_id, field_id)  
     # Call to process only for the year 2024
+    parse_planting_events(producer_id, field_id, specific_year=2024)
     parse_harvest_events(producer_id, field_id, specific_year=2024)
 
 
@@ -427,5 +503,5 @@ for field_id in field_ids:
 # Smith West - '37a2f972-90c5-40c9-a5f1-56d5f8768e27' ✓
 
 # '63b36320-8e38-454f-97c9-e4dcb3510d61' - T. Ball
-# Krueger W - 'fe325a21-4f88-42aa-8f81-122c9ca04aec' # Soybean planting and harvest event, some conflict with a corn planting but no harvest (removed from JSON)
-# Krueger E - '9d8feb4b-d87b-49c3-99f1-73839623267f' # No Harvest events + Corn 2024-04-09, empty planting event 2024-05-10 (removed from JSON)
+# Krueger W - 'fe325a21-4f88-42aa-8f81-122c9ca04aec' ✓ # Soybean planting and harvest event, some conflict with a corn planting but no harvest (removed from JSON)
+# Krueger E - '9d8feb4b-d87b-49c3-99f1-73839623267f' ✓ # No Harvest events + Corn 2024-04-09, empty planting event 2024-05-10 (removed from JSON)
