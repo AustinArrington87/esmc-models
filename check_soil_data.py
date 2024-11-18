@@ -34,8 +34,29 @@ merged_soil_data['different'] = merged_soil_data.apply(
 # Filter only rows with differences
 differences_summary = merged_soil_data[merged_soil_data['different'] != ''][['field_id', 'different']]
 
-# Output the results
-print(differences_summary)
+# Check for outliers in the new file
+def check_outliers(row):
+    outliers = []
+    if row['soil_avg_ph'] < 4 or row['soil_avg_ph'] > 9:
+        outliers.append('pH')
+    if row['soil_avg_soc'] < 0.003 or row['soil_avg_soc'] > 0.02:
+        outliers.append('SOC')
+    if row['soil_avg_bulkdensity'] < 1.1 or row['soil_avg_bulkdensity'] > 1.9:
+        outliers.append('BD')
+    return ', '.join(outliers)
 
-# Optionally, save the output to a CSV file
+# Apply outlier check to the new dataset
+soil_data_new['outliers'] = soil_data_new.apply(check_outliers, axis=1)
+
+# Filter rows with outliers
+outliers_summary = soil_data_new[soil_data_new['outliers'] != ''][['field_id', 'outliers']]
+
+# Output the results
+print("Differences Summary:")
+print(differences_summary)
+print("\nOutliers Summary:")
+print(outliers_summary)
+
+# Optionally, save the outputs to CSV files
 differences_summary.to_csv('Field_Differences_Summary.csv', index=False)
+outliers_summary.to_csv('Field_Outliers_Summary.csv', index=False)
