@@ -22,20 +22,22 @@ crop_type_to_id = {
     "Soybeans": 2,
     "Winter Wheat": 3,
     "Sorghum": 10,
-    "Corn": 1
+    "Corn": 1,
+    "Wheat": 25,
+    "Oats": 8
 }
 
 # list projects 
 #projects = mrv.projects()
 #print(projects)
 # get project ID 
-#AGIprojId = mrv.projectId('AGI SGP Market')
-#print(AGIprojId)
+AGIprojId = mrv.projectId('AGI SGP Market')
+print(AGIprojId)
 
-#AGIProducers = mrv.enrolledProducers(AGIprojId, 2023)
+AGIProducers = mrv.enrolledProducers(AGIprojId, 2024)
 # "partner_grower_id" in AGI
 # "partner_field_id" in AGI
-#print(AGIProducers)
+print(AGIProducers)
 
 #AustinProducers = mrv.enrolledProducers('18a4db70-209d-4a93-87a9-ab3ff315fd14', 2024)
 #print(AustinProducers)
@@ -473,7 +475,25 @@ def insert_fertilizer_event(eventId, seasonIds, doneAt, applicationMethodId, fer
     print(f"Total rows affected in linked event and fertilizer details: {total_affected_rows}")
     return total_affected_rows
 
-
+# function to run on all fields for a producer 
+def process_producer_events(producer_ids, specific_year=None):
+    with open('cpfrs_by_grower.json') as f:
+        data = json.load(f)
+    
+    for producer_id in producer_ids:
+        if producer_id not in data:
+            print(f"Producer ID {producer_id} not found in JSON data.")
+            continue
+            
+        print(f"\nProcessing producer: {producer_id}")
+        fields = data[producer_id]
+        
+        for field in fields:
+            field_id = field.get("partner_field_id")
+            if field_id:
+                print(f"\nProcessing field: {field_id}")
+                parse_planting_events(producer_id, field_id, specific_year)
+                parse_harvest_events(producer_id, field_id, specific_year)
 
 ################################################
 # Example usage - Fertilizer application 
@@ -514,23 +534,36 @@ liquid_density = 8.3
 #     liquidDensity=liquid_density
 # )
 ################################################
-# Example Usage, Planting and Harvest 
+# Example Usage, Planting and Harvest - DO IT THIS WAY IF YOU'RE RUNNIGN SPECIFIC FIELDS 
 
-# Example dictionary of producers and their field IDs
-producers_fields = {
-    "7b227522-8f36-4ecf-8bb7-1ad98d4d6c8c": ["3d72c0ce-c16c-48c0-be8c-384a0dcaff68", "76e43cc9-2e2a-47e8-a5ae-baaefbdf0c84", "07206026-bd14-4732-b82a-1657dc68e3fa", '37a2f972-90c5-40c9-a5f1-56d5f8768e27'],
-    "63b36320-8e38-454f-97c9-e4dcb3510d61": ["fe325a21-4f88-42aa-8f81-122c9ca04aec", "9d8feb4b-d87b-49c3-99f1-73839623267f"],
-    "37459734-03ac-4b4f-95c0-bb4311beb121": ["ebfdbc2f-566a-4cf8-a6d6-19fece8ebe35", "6115fcad-56bf-44d9-9957-da03b6cc1a84", "ba6184ab-31ee-4c20-b87a-1682704bca7a"]
-}
+# # Example dictionary of producers and their field IDs
+# producers_fields = {
+#     "7b227522-8f36-4ecf-8bb7-1ad98d4d6c8c": ["3d72c0ce-c16c-48c0-be8c-384a0dcaff68", "76e43cc9-2e2a-47e8-a5ae-baaefbdf0c84", "07206026-bd14-4732-b82a-1657dc68e3fa", '37a2f972-90c5-40c9-a5f1-56d5f8768e27'],
+#     "63b36320-8e38-454f-97c9-e4dcb3510d61": ["fe325a21-4f88-42aa-8f81-122c9ca04aec", "9d8feb4b-d87b-49c3-99f1-73839623267f"],
+#     "37459734-03ac-4b4f-95c0-bb4311beb121": ["ebfdbc2f-566a-4cf8-a6d6-19fece8ebe35", "6115fcad-56bf-44d9-9957-da03b6cc1a84", "ba6184ab-31ee-4c20-b87a-1682704bca7a"]
+# }
 
-# Iterate over the producers and their field IDs
-for producer_id, field_ids in producers_fields.items():
-    for field_id in field_ids:
-        # Call to process only for the year 2024
-        parse_planting_events(producer_id, field_id, specific_year=2024)
-        parse_harvest_events(producer_id, field_id, specific_year=2024)
+# # Iterate over the producers and their field IDs
+# for producer_id, field_ids in producers_fields.items():
+#     for field_id in field_ids:
+#         # Call to process only for the year 2024
+#         parse_planting_events(producer_id, field_id, specific_year=2024)
+#         parse_harvest_events(producer_id, field_id, specific_year=2024)
 
-# '7b227522-8f36-4ecf-8bb7-1ad98d4d6c8c' - J. WILLIAMS ✓
+###########
+# Example Usage, Planting and Harvest - DO IT THIS WAY IF YOU'RE RUNNING ALL FIELDS FOR A PRODUCER 
+
+# Usage example -- All fields for a producer(s)
+producer_ids = [
+    "1b8781bf-3126-474d-93ea-a6d359d60f11"
+]
+process_producer_events(producer_ids, specific_year=2024)
+
+######
+
+# '1b8781bf-3126-474d-93ea-a6d359d60f11' C. Basinger ✓ (All fields rewritten 11/25)
+
+# '7b227522-8f36-4ecf-8bb7-1ad98d4d6c8c' - J. WILLIAMS ✓ (All fields rewritten 11/25)
 # P Rinehart - '3d72c0ce-c16c-48c0-be8c-384a0dcaff68' ✓
 # K Rinehart - '76e43cc9-2e2a-47e8-a5ae-baaefbdf0c84' ✓
 # Soybeans harvested 2023-10-09, 21.04690989 bu/ac + '' harvested 2024-06-16 213.1069567 bua/acre + Winter Wheat harvested 2024-06-17 10.8198256 bu/acre (removed from JSON)
