@@ -351,7 +351,7 @@ def transform_to_plet_format(input_data, year):
     }
     
     # Practice change priority (highest to lowest)
-    priority_order = ["CC", "TR", "NM"]
+    priority_order = ["NM", "CC", "TR"]
     
     features = []
     
@@ -453,3 +453,9 @@ if plet_data:
     print(f"Number of fields processed: {len(plet_data['features'])}")
 else:
     print("Failed to process data")
+
+
+
+
+
+
