@@ -2,6 +2,8 @@ import mrvApi as mrv
 import requests
 import json
 import uuid
+import pandas as pd
+import datetime as datetime
 
 c = mrv.configure(".env.production")
 
@@ -24,7 +26,26 @@ crop_type_to_id = {
     "Sorghum": 10,
     "Corn": 1,
     "Wheat": 25,
-    "Oats": 8
+    "Oats": 8,
+    "Sunflower": 22,
+    "Cow Peas": 24
+}
+
+#application method Dictionary
+application_id = {
+    "Anhydrous Ammonia Applicator": 1,
+    "Banded & Incorporated": 2,
+    "Broadcast": 3,
+    "Fertigation, Drip": 4,
+    "Fertigation, Furrow": 10,
+    "Fertigation, Sprinkler": 11,
+    "Fertigation, Subsurface Drip": 12,
+    "Foliar": 13,
+    "Injected": 5,
+    "Sidedress": 7,
+    "Surface Banded": 8,
+    "Topdress": 9,
+    "Other": 6
 }
 
 # list projects 
@@ -475,6 +496,89 @@ def insert_fertilizer_event(eventId, seasonIds, doneAt, applicationMethodId, fer
     print(f"Total rows affected in linked event and fertilizer details: {total_affected_rows}")
     return total_affected_rows
 
+# load fert methods 
+def load_fertilizer_mappings(json_path):
+    """Load fertilizer mappings from JSON file."""
+    with open(json_path, 'r') as f:
+        fertilizers = json.load(f)
+    
+    # Create a mapping of fertilizer name to its details
+    fert_map = {}
+    for fert in fertilizers:
+        fert_map[fert['name']] = {
+            'id': int(fert['id']),
+            'categoryId': str(fert['fertilizerCategoryId'])
+        }
+    return fert_map
+
+# process fert data from Excel 
+def process_fertilizer_data(excel_path, fertilizers_json_path):
+    """Process fertilizer data from Excel and create events."""
+    # Read Excel file - specifically from the Fertilizer sheet
+    df = pd.read_excel(excel_path, sheet_name='Fertilizer')
+    
+    # Load fertilizer mappings
+    fert_map = load_fertilizer_mappings(fertilizers_json_path)
+    
+    # Get unique field-year combinations and get season IDs
+    unique_field_years = df[['field_uuid', 'year']].drop_duplicates()
+    season_ids_by_year = {}  # Dictionary to store season IDs by year
+    
+    # Get season IDs and organize them by year and field
+    season_ids_by_year_field = {}  # Dictionary to store season IDs by year and field
+    
+    for _, row in unique_field_years.iterrows():
+        field_uuid = str(row['field_uuid'])
+        year = int(row['year'])
+        season_id = get_season_id(field_uuid, year)
+        
+        # Create nested dictionary structure
+        if year not in season_ids_by_year_field:
+            season_ids_by_year_field[year] = {}
+        season_ids_by_year_field[year][field_uuid] = season_id
+    
+    # Process each fertilizer application
+    for _, row in df.iterrows():
+        # Get fertilizer details
+        fert_details = fert_map[row['fert_type']]
+        
+        # Get the season ID for this specific year and field
+        year = int(row['year'])
+        field_uuid = str(row['field_uuid'])
+        application_season = season_ids_by_year_field[year][field_uuid]
+        # Put it in a list since the function expects a list of season IDs
+        application_seasons = [application_season]
+        
+        # Format application date to YYYY-MM-DD
+        if isinstance(row['application_date'], str):
+            done_at = datetime.strptime(row['application_date'].split('T')[0], '%Y-%m-%d').strftime('%Y-%m-%d')
+        else:
+            done_at = row['application_date'].strftime('%Y-%m-%d')
+        
+        # Get application method ID as integer
+        application_method_id = int(application_id[row['application_method']])
+        
+        # Convert rate to float/decimal
+        rate = float(row['rate'])
+        
+        # Prepare parameters for insert_fertilizer_event
+        # Set liquidDensity to 8.3 for Manure Dairy Cattle Slurry, None for everything else
+        liquid_density = float(8.3) if row['fert_type'] == "Manure Dairy Cattle Slurry" else None
+        
+        params = {
+            'eventId': 11,
+            'seasonIds': application_seasons,
+            'doneAt': done_at,
+            'applicationMethodId': application_method_id,
+            'fertilizerId': fert_details['id'],
+            'fertilizerCategoryId': fert_details['categoryId'],
+            'rate': rate,
+            'liquidDensity': liquid_density
+        }
+        
+        # Insert fertilizer event with appropriate parameters
+        insert_fertilizer_event(**params)
+
 # function to run on all fields for a producer 
 def process_producer_events(producer_ids, specific_year=None):
     with open('cpfrs_by_grower.json') as f:
@@ -496,33 +600,33 @@ def process_producer_events(producer_ids, specific_year=None):
                 parse_harvest_events(producer_id, field_id, specific_year)
 
 ################################################
-# Example usage - Fertilizer application 
+# Example usage - Fertilizer application --- MANUAL / Hardcoded 
 
-# Get season_ids 
+# Get season_ids - Austin Barrington
 #'1be67eef-fe42-493d-b0d4-957b379d4621', 'name': 'anne-1'
 # 'id': '97e81cfb-44cc-4dc2-a4fa-3ef99d4eaa3a', 'name': 'anne-2'  
 #'ed4c5739-bf87-4348-86ea-c35e0e289c37', 'name': 'bad-demo-field'
 # {'id': '0ddf6d8f-b960-4fc1-9da3-4ed2a5575a07', 'name': 'Custom Year_Demo'
 
-seasons = []
-fields = ['1be67eef-fe42-493d-b0d4-957b379d4621', '97e81cfb-44cc-4dc2-a4fa-3ef99d4eaa3a', 'ed4c5739-bf87-4348-86ea-c35e0e289c37', '0ddf6d8f-b960-4fc1-9da3-4ed2a5575a07']
-for f in fields:
-    season_id = get_season_id(f, 2024)
-    seasons.append(season_id)
+# seasons = []
+# fields = ['1be67eef-fe42-493d-b0d4-957b379d4621', '97e81cfb-44cc-4dc2-a4fa-3ef99d4eaa3a', 'ed4c5739-bf87-4348-86ea-c35e0e289c37', '0ddf6d8f-b960-4fc1-9da3-4ed2a5575a07']
+# for f in fields:
+#     season_id = get_season_id(f, 2024)
+#     seasons.append(season_id)
 
 
-##################
-# Usage example with necessary parameters
-seasons = seasons
-event_id = 11
-done_at = "2024-10-04"
-application_method_id = 3
-fertilizer_id = 3
-fertilizer_category_id = 'Organic'
-rate = 6000
-liquid_density = 8.3
+# ##################
+# # Usage example with necessary parameters
+# seasons = seasons
+# event_id = 11
+# done_at = "2024-10-04"
+# application_method_id = 3
+# fertilizer_id = 3
+# fertilizer_category_id = 'Organic'
+# rate = 6000
+# liquid_density = 8.3
 
-# Execute the function -- Insert Fert events
+# # Execute the function -- Insert Fert events
 # insert_fertilizer_event(
 #     eventId=event_id,
 #     seasonIds=seasons,
@@ -533,6 +637,18 @@ liquid_density = 8.3
 #     rate=rate,
 #     liquidDensity=liquid_density
 # )
+
+######
+
+# Usage -- FROM EXCEL Sheet 
+if __name__ == "__main__":
+    process_fertilizer_data(
+        excel_path='fert_data.xlsx',
+        fertilizers_json_path='fertilizers.json'
+    )
+
+
+
 ################################################
 # Example Usage, Planting and Harvest - DO IT THIS WAY IF YOU'RE RUNNIGN SPECIFIC FIELDS 
 
@@ -554,12 +670,18 @@ liquid_density = 8.3
 # Example Usage, Planting and Harvest - DO IT THIS WAY IF YOU'RE RUNNING ALL FIELDS FOR A PRODUCER 
 
 # Usage example -- All fields for a producer(s)
-producer_ids = [
-    "1b8781bf-3126-474d-93ea-a6d359d60f11"
-]
-process_producer_events(producer_ids, specific_year=2024)
+# producer_ids = [
+#     "63b36320-8e38-454f-97c9-e4dcb3510d61",
+#     "37459734-03ac-4b4f-95c0-bb4311beb121",
+#     "ef920cb5-944a-4756-8b8d-6c5e20ab0f91",
+#     '94477c71-1741-4e73-8ff3-b01ef68d9816'
+# ]
+# process_producer_events(producer_ids, specific_year=2024)
 
 ######
+
+# ef920cb5-944a-4756-8b8d-6c5e20ab0f91 - M. Canny ✓ (All fields rewritten 11/29)
+# 94477c71-1741-4e73-8ff3-b01ef68d9816 - T. Nichols ✓ (All fields rewritten 11/29)
 
 # '1b8781bf-3126-474d-93ea-a6d359d60f11' C. Basinger ✓ (All fields rewritten 11/25)
 
@@ -570,11 +692,11 @@ process_producer_events(producer_ids, specific_year=2024)
 # P Rinehart West - '07206026-bd14-4732-b82a-1657dc68e3fa' ✓ -- missing the partner_field_id, also empty yield Sorghum (removed from JSON)
 # Smith West - '37a2f972-90c5-40c9-a5f1-56d5f8768e27' ✓
 
-# '63b36320-8e38-454f-97c9-e4dcb3510d61' - T. Ball ✓
+# '63b36320-8e38-454f-97c9-e4dcb3510d61' - T. Ball ✓ (All fields rewritten 11/29)
 # Krueger W - 'fe325a21-4f88-42aa-8f81-122c9ca04aec' ✓ # Soybean planting and harvest event, some conflict with a corn planting but no harvest (removed from JSON)
 # Krueger E - '9d8feb4b-d87b-49c3-99f1-73839623267f' ✓ # No Harvest events + Corn 2024-04-09, empty planting event 2024-05-10 (removed from JSON)
 
-# '37459734-03ac-4b4f-95c0-bb4311beb121' - T. Langford ✓
+# '37459734-03ac-4b4f-95c0-bb4311beb121' - T. Langford ✓ (All fields rewritten 11/29)
 # East of Goldie - 'ebfdbc2f-566a-4cf8-a6d6-19fece8ebe35' Winter Wheat planting and harvest + empty planting event 2024-05-09 (removed from JSON)
 # Kevin Thomas - '6115fcad-56bf-44d9-9957-da03b6cc1a84' empty plant event 2023-10-10, winter wheat harvest (removd from JSON)
 # Singletons - 'ba6184ab-31ee-4c20-b87a-1682704bca7a' empty plant event 2023-12-07 + Corn {planting }+ Sorghum harvest event but no sorghum planting (removed from JSON)
