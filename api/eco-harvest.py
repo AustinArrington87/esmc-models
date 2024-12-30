@@ -19,7 +19,7 @@ headers = {
 # Define the GraphQL endpoint
 url = "https://graphql.ecoharvest.ag/v1/graphql"
 
-# Mapping of crop types to commodity IDs
+# Mapping of crop types to commodity IDs - used for mapping from AGI CPFR 
 crop_type_to_id = {
     "Soybeans": 2,
     "Winter Wheat": 3,
@@ -139,6 +139,7 @@ def insert_plant_event(commodityId, eventId, doneAt, seasonId):
         print(response.text)
         return 0
 
+# Used for Parsing from AGI CPFR - Harvest events 
 def parse_planting_events(producer_id, field_id, specific_year=None):
     with open('cpfrs_by_grower.json') as f:
         data = json.load(f)
@@ -272,6 +273,7 @@ def insert_harvest_event(commodityId, eventId, doneAt, yield_value, seasonId):
 
 ################################################
 
+# Parse Harvest - used for Parsing from AGI CPFR 
 def parse_harvest_events(producer_id, field_id, specific_year=None):
     with open('cpfrs_by_grower.json') as f:
         data = json.load(f)
@@ -511,7 +513,125 @@ def load_fertilizer_mappings(json_path):
         }
     return fert_map
 
-# process fert data from Excel 
+# load commodity IDs
+def load_commodity_mappings(json_path):
+    """Load commodity mappings from JSON file."""
+    with open(json_path, 'r') as f:
+        commodities = json.load(f)
+    
+    # Create a mapping of commodity name to ID
+    commodity_map = {}
+    for commodity in commodities:
+        commodity_map[commodity['name']] = int(commodity['id'])
+    return commodity_map
+
+# process Planting Events from Spreadsheet 
+def process_planting_data(excel_path, commodities_json_path):
+    """Process planting data from Excel sheet."""
+    # Read Excel file - specifically from the Planting sheet
+    df = pd.read_excel(excel_path, sheet_name='Planting')
+    
+    # Load commodity mappings
+    commodity_map = load_commodity_mappings(commodities_json_path)
+    
+    # Get unique field-year combinations and get season IDs
+    unique_field_years = df[['field_uuid', 'year']].drop_duplicates()
+    season_ids_by_year_field = {}
+    
+    # Get season IDs and organize them by year and field
+    for _, row in unique_field_years.iterrows():
+        field_uuid = str(row['field_uuid'])
+        year = int(row['year'])
+        season_id = get_season_id(field_uuid, year)
+        
+        if year not in season_ids_by_year_field:
+            season_ids_by_year_field[year] = {}
+        season_ids_by_year_field[year][field_uuid] = season_id
+    
+    total_affected_rows = 0
+    # Process each planting event
+    for _, row in df.iterrows():
+        # Get the season ID for this specific year and field
+        year = int(row['year'])
+        field_uuid = str(row['field_uuid'])
+        season_id = season_ids_by_year_field[year][field_uuid]
+        
+        # Format planting date to YYYY-MM-DD
+        if isinstance(row['planting_date'], str):
+            done_at = datetime.strptime(row['planting_date'].split('T')[0], '%Y-%m-%d').strftime('%Y-%m-%d')
+        else:
+            done_at = row['planting_date'].strftime('%Y-%m-%d')
+        
+        # Get commodity ID
+        commodity_id = commodity_map[row['commodity']]
+        
+        # Insert planting event
+        affected_rows = insert_plant_event(
+            commodityId=commodity_id,
+            eventId=1,  # Event ID for planting is 1
+            doneAt=done_at,
+            seasonId=season_id
+        )
+        total_affected_rows += affected_rows
+    
+    return total_affected_rows
+
+# process Harvest Events from Excel Spreadsheet 
+def process_harvest_data(excel_path, commodities_json_path):
+    """Process harvest data from Excel sheet."""
+    # Read Excel file - specifically from the Harvest sheet
+    df = pd.read_excel(excel_path, sheet_name='Harvest')
+    
+    # Load commodity mappings
+    commodity_map = load_commodity_mappings(commodities_json_path)
+    
+    # Get unique field-year combinations and get season IDs
+    unique_field_years = df[['field_uuid', 'year']].drop_duplicates()
+    season_ids_by_year_field = {}
+    
+    # Get season IDs and organize them by year and field
+    for _, row in unique_field_years.iterrows():
+        field_uuid = str(row['field_uuid'])
+        year = int(row['year'])
+        season_id = get_season_id(field_uuid, year)
+        
+        if year not in season_ids_by_year_field:
+            season_ids_by_year_field[year] = {}
+        season_ids_by_year_field[year][field_uuid] = season_id
+    
+    total_affected_rows = 0
+    # Process each harvest event
+    for _, row in df.iterrows():
+        # Get the season ID for this specific year and field
+        year = int(row['year'])
+        field_uuid = str(row['field_uuid'])
+        season_id = season_ids_by_year_field[year][field_uuid]
+        
+        # Format harvest date to YYYY-MM-DD
+        if isinstance(row['harvest_date'], str):
+            done_at = datetime.strptime(row['harvest_date'].split('T')[0], '%Y-%m-%d').strftime('%Y-%m-%d')
+        else:
+            done_at = row['harvest_date'].strftime('%Y-%m-%d')
+        
+        # Get commodity ID
+        commodity_id = commodity_map[row['commodity']]
+        
+        # Convert yield to float
+        yield_value = float(row['yield'])
+        
+        # Insert harvest event
+        affected_rows = insert_harvest_event(
+            commodityId=commodity_id,
+            eventId=5,  # Event ID for harvest is 5
+            doneAt=done_at,
+            yield_value=yield_value,
+            seasonId=season_id
+        )
+        total_affected_rows += affected_rows if affected_rows is not None else 0
+    
+    return total_affected_rows
+
+# process Fertilizer data from Excel Spreadhseet 
 def process_fertilizer_data(excel_path, fertilizers_json_path):
     """Process fertilizer data from Excel and create events."""
     # Read Excel file - specifically from the Fertilizer sheet
@@ -641,13 +761,34 @@ def process_producer_events(producer_ids, specific_year=None):
 ######
 
 # Usage -- FROM EXCEL Sheet 
+# Usage
 if __name__ == "__main__":
+    excel_path = 'fert_data.xlsx'
+    fertilizers_json_path = 'fertilizers.json'
+    commodities_json_path = 'commodities.json'
+    
+    # Process fertilizer data
+    print("\nProcessing fertilizer data...")
     process_fertilizer_data(
-        excel_path='fert_data.xlsx',
-        fertilizers_json_path='fertilizers.json'
+        excel_path=excel_path,
+        fertilizers_json_path=fertilizers_json_path
     )
-
-
+    
+    # Process planting data
+    print("\nProcessing planting data...")
+    planting_rows = process_planting_data(
+        excel_path=excel_path,
+        commodities_json_path=commodities_json_path
+    )
+    print(f"Total planting events processed: {planting_rows}")
+    
+    # Process harvest data
+    print("\nProcessing harvest data...")
+    harvest_rows = process_harvest_data(
+        excel_path=excel_path,
+        commodities_json_path=commodities_json_path
+    )
+    print(f"Total harvest events processed: {harvest_rows}")
 
 ################################################
 # Example Usage, Planting and Harvest - DO IT THIS WAY IF YOU'RE RUNNIGN SPECIFIC FIELDS 
@@ -679,3 +820,24 @@ if __name__ == "__main__":
 # process_producer_events(producer_ids, specific_year=2024)
 
 ######
+
+# ef920cb5-944a-4756-8b8d-6c5e20ab0f91 - M. Canny ✓ (All fields rewritten 11/29)
+# 94477c71-1741-4e73-8ff3-b01ef68d9816 - T. Nichols ✓ (All fields rewritten 11/29)
+
+# '1b8781bf-3126-474d-93ea-a6d359d60f11' C. Basinger ✓ (All fields rewritten 11/25)
+
+# '7b227522-8f36-4ecf-8bb7-1ad98d4d6c8c' - J. WILLIAMS ✓ (All fields rewritten 11/25)
+# P Rinehart - '3d72c0ce-c16c-48c0-be8c-384a0dcaff68' ✓
+# K Rinehart - '76e43cc9-2e2a-47e8-a5ae-baaefbdf0c84' ✓
+# Soybeans harvested 2023-10-09, 21.04690989 bu/ac + '' harvested 2024-06-16 213.1069567 bua/acre + Winter Wheat harvested 2024-06-17 10.8198256 bu/acre (removed from JSON)
+# P Rinehart West - '07206026-bd14-4732-b82a-1657dc68e3fa' ✓ -- missing the partner_field_id, also empty yield Sorghum (removed from JSON)
+# Smith West - '37a2f972-90c5-40c9-a5f1-56d5f8768e27' ✓
+
+# '63b36320-8e38-454f-97c9-e4dcb3510d61' - T. Ball ✓ (All fields rewritten 11/29)
+# Krueger W - 'fe325a21-4f88-42aa-8f81-122c9ca04aec' ✓ # Soybean planting and harvest event, some conflict with a corn planting but no harvest (removed from JSON)
+# Krueger E - '9d8feb4b-d87b-49c3-99f1-73839623267f' ✓ # No Harvest events + Corn 2024-04-09, empty planting event 2024-05-10 (removed from JSON)
+
+# '37459734-03ac-4b4f-95c0-bb4311beb121' - T. Langford ✓ (All fields rewritten 11/29)
+# East of Goldie - 'ebfdbc2f-566a-4cf8-a6d6-19fece8ebe35' Winter Wheat planting and harvest + empty planting event 2024-05-09 (removed from JSON)
+# Kevin Thomas - '6115fcad-56bf-44d9-9957-da03b6cc1a84' empty plant event 2023-10-10, winter wheat harvest (removd from JSON)
+# Singletons - 'ba6184ab-31ee-4c20-b87a-1682704bca7a' empty plant event 2023-12-07 + Corn {planting }+ Sorghum harvest event but no sorghum planting (removed from JSON)
