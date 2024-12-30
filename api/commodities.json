@@ -1,0 +1,542 @@
+[
+  {
+    "id": 4,
+    "name": "Alfalfa",
+    "unit": "tons/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 12,
+    "softMinValue": 2,
+    "softMaxValue": 10,
+    "isProjectCommodity": true
+  },
+  {
+    "id": 70,
+    "name": "Alfalfa (Silage)",
+    "unit": "tons/acre",
+    "hardMinValue": 1,
+    "hardMaxValue": 15,
+    "softMinValue": 2,
+    "softMaxValue": 8,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 16,
+    "name": "ALF (Kimberly Clark)",
+    "unit": "tons/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 1234,
+    "softMinValue": 185,
+    "softMaxValue": 1049,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 6,
+    "name": "Almonds",
+    "unit": "pounds/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 3500,
+    "softMinValue": 525,
+    "softMaxValue": 2975,
+    "isProjectCommodity": true
+  },
+  {
+    "id": 11,
+    "name": "Barley",
+    "unit": "bushels/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 300,
+    "softMinValue": 45,
+    "softMaxValue": 255,
+    "isProjectCommodity": true
+  },
+  {
+    "id": 71,
+    "name": "Barley (Silage)",
+    "unit": "tons/acre",
+    "hardMinValue": 1,
+    "hardMaxValue": 10,
+    "softMinValue": 2,
+    "softMaxValue": 6,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 32,
+    "name": "Beans, Dry",
+    "unit": "bushels/acre",
+    "hardMinValue": null,
+    "hardMaxValue": null,
+    "softMinValue": null,
+    "softMaxValue": null,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 12,
+    "name": "Beets, Sugar",
+    "unit": "tons/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 60,
+    "softMinValue": 9,
+    "softMaxValue": 51,
+    "isProjectCommodity": true
+  },
+  {
+    "id": 30,
+    "name": "Buckwheat",
+    "unit": "bushels/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 50,
+    "softMinValue": 8,
+    "softMaxValue": 42,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 72,
+    "name": "Buckwheat (Silage)",
+    "unit": "tons/acre",
+    "hardMinValue": 1,
+    "hardMaxValue": 9,
+    "softMinValue": 2,
+    "softMaxValue": 5,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 75,
+    "name": "Canola (Silage)",
+    "unit": "tons/acre",
+    "hardMinValue": 1,
+    "hardMaxValue": 8,
+    "softMinValue": 2,
+    "softMaxValue": 5,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 40,
+    "name": "Clover",
+    "unit": "pounds/acre",
+    "hardMinValue": 200,
+    "hardMaxValue": 8500,
+    "softMinValue": 250,
+    "softMaxValue": 6375,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 1,
+    "name": "Corn, Grain",
+    "unit": "bushels/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 400,
+    "softMinValue": 60,
+    "softMaxValue": 340,
+    "isProjectCommodity": true
+  },
+  {
+    "id": 5,
+    "name": "Corn (Silage)",
+    "unit": "tons/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 30,
+    "softMinValue": 5,
+    "softMaxValue": 25,
+    "isProjectCommodity": true
+  },
+  {
+    "id": 23,
+    "name": "Corn, Sweet",
+    "unit": "cwt/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 120,
+    "softMinValue": 18,
+    "softMaxValue": 102,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 7,
+    "name": "Cotton",
+    "unit": "pounds/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 3500,
+    "softMinValue": 525,
+    "softMaxValue": 2975,
+    "isProjectCommodity": true
+  },
+  {
+    "id": 34,
+    "name": "Flax",
+    "unit": "bushels/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 44.6,
+    "softMinValue": 0.5,
+    "softMaxValue": 37.3,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 73,
+    "name": "Flax (Silage)",
+    "unit": "tons/acre",
+    "hardMinValue": 1,
+    "hardMaxValue": 5,
+    "softMinValue": 3,
+    "softMaxValue": 3,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 38,
+    "name": "Lentil",
+    "unit": "pounds/acre",
+    "hardMinValue": 150,
+    "hardMaxValue": 2500,
+    "softMinValue": 187.5,
+    "softMaxValue": 1000,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 35,
+    "name": "Millet",
+    "unit": "bushels/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 150,
+    "softMinValue": 37.5,
+    "softMaxValue": 112.5,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 36,
+    "name": "Mustard",
+    "unit": "pounds/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 2500,
+    "softMinValue": 210,
+    "softMaxValue": 1240,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 8,
+    "name": "Oats",
+    "unit": "bushels/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 250,
+    "softMinValue": 38,
+    "softMaxValue": 213,
+    "isProjectCommodity": true
+  },
+  {
+    "id": 74,
+    "name": "Oats (Silage)",
+    "unit": "tons/acre",
+    "hardMinValue": 1,
+    "hardMaxValue": 10,
+    "softMinValue": 2,
+    "softMaxValue": 6,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 14,
+    "name": "Other",
+    "unit": null,
+    "hardMinValue": null,
+    "hardMaxValue": null,
+    "softMinValue": null,
+    "softMaxValue": null,
+    "isProjectCommodity": true
+  },
+  {
+    "id": 37,
+    "name": "Pea",
+    "unit": "pounds/acre",
+    "hardMinValue": 1,
+    "hardMaxValue": 4500,
+    "softMinValue": 525,
+    "softMaxValue": 3500,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 24,
+    "name": "Pea, Chinese Red/Cowpea",
+    "unit": "pounds/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 3500,
+    "softMinValue": 525,
+    "softMaxValue": 2975,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 17,
+    "name": "Peanuts",
+    "unit": "pounds/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 7000,
+    "softMinValue": 1050,
+    "softMaxValue": 5950,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 13,
+    "name": "Potatoes",
+    "unit": "cwt/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 900,
+    "softMinValue": 135,
+    "softMaxValue": 765,
+    "isProjectCommodity": true
+  },
+  {
+    "id": 18,
+    "name": "Potato, Sweet",
+    "unit": "cwt/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 500,
+    "softMinValue": 75,
+    "softMaxValue": 425,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 19,
+    "name": "Pumpkin",
+    "unit": "pounds/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 100,
+    "softMinValue": 15,
+    "softMaxValue": 85,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 39,
+    "name": "Radish",
+    "unit": "pounds/acre",
+    "hardMinValue": 8500,
+    "hardMaxValue": 13000,
+    "softMinValue": 10625,
+    "softMaxValue": 12375,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 15,
+    "name": "Rapeseed/Canola",
+    "unit": "bushels/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 100,
+    "softMinValue": 15,
+    "softMaxValue": 85,
+    "isProjectCommodity": true
+  },
+  {
+    "id": 20,
+    "name": "Rice",
+    "unit": "pounds/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 10000,
+    "softMinValue": 1500,
+    "softMaxValue": 8500,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 9,
+    "name": "Rye",
+    "unit": "bushels/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 120,
+    "softMinValue": 18,
+    "softMaxValue": 102,
+    "isProjectCommodity": true
+  },
+  {
+    "id": 33,
+    "name": "Ryegrass",
+    "unit": "pounds/acre",
+    "hardMinValue": null,
+    "hardMaxValue": null,
+    "softMinValue": null,
+    "softMaxValue": null,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 77,
+    "name": "Ryegrass (Silage)",
+    "unit": "tons/acre",
+    "hardMinValue": 1,
+    "hardMaxValue": 12,
+    "softMinValue": 3,
+    "softMaxValue": 7,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 26,
+    "name": "Rye, Spring",
+    "unit": "bushels/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 120,
+    "softMinValue": 18,
+    "softMaxValue": 102,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 76,
+    "name": "Rye, Spring (Silage)",
+    "unit": "tons/acre",
+    "hardMinValue": 1,
+    "hardMaxValue": 8,
+    "softMinValue": 2,
+    "softMaxValue": 5,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 10,
+    "name": "Sorghum, Grain",
+    "unit": "bushels/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 250,
+    "softMinValue": 38,
+    "softMaxValue": 213,
+    "isProjectCommodity": true
+  },
+  {
+    "id": 27,
+    "name": "Sorghum (Silage)",
+    "unit": "tons/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 50,
+    "softMinValue": 8,
+    "softMaxValue": 42,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 2,
+    "name": "Soybeans",
+    "unit": "bushels/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 120,
+    "softMinValue": 18,
+    "softMaxValue": 102,
+    "isProjectCommodity": true
+  },
+  {
+    "id": 21,
+    "name": "Sugarcane",
+    "unit": "tons/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 50,
+    "softMinValue": 8,
+    "softMaxValue": 42,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 22,
+    "name": "Sunflowers",
+    "unit": "pounds/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 2000,
+    "softMinValue": 300,
+    "softMaxValue": 1700,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 78,
+    "name": "Sunflower (Silage)",
+    "unit": "tons/acre",
+    "hardMinValue": 1,
+    "hardMaxValue": 9,
+    "softMinValue": 2,
+    "softMaxValue": 6,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 31,
+    "name": "Triticale",
+    "unit": "bushels/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 120,
+    "softMinValue": 18,
+    "softMaxValue": 102,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 83,
+    "name": "Triticale (Silage)",
+    "unit": "tons/acre",
+    "hardMinValue": 1,
+    "hardMaxValue": 10,
+    "softMinValue": 2,
+    "softMaxValue": 6,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 29,
+    "name": "Wheat, Emmer",
+    "unit": "bushels/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 400,
+    "softMinValue": 60,
+    "softMaxValue": 340,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 79,
+    "name": "Wheat, Emmer (Silage)",
+    "unit": "tons/acre",
+    "hardMinValue": 1,
+    "hardMaxValue": 8,
+    "softMinValue": 2,
+    "softMaxValue": 5,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 28,
+    "name": "Wheat, Kernza",
+    "unit": "pounds/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 1500,
+    "softMinValue": 225,
+    "softMaxValue": 1275,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 80,
+    "name": "Wheat, Kernza (Silage)",
+    "unit": "tons/acre",
+    "hardMinValue": 1,
+    "hardMaxValue": 7,
+    "softMinValue": 2,
+    "softMaxValue": 4,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 25,
+    "name": "Wheat, Spring",
+    "unit": "bushels/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 300,
+    "softMinValue": 45,
+    "softMaxValue": 255,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 81,
+    "name": "Wheat, Spring (Silage)",
+    "unit": "tons/acre",
+    "hardMinValue": 1,
+    "hardMaxValue": 8,
+    "softMinValue": 2,
+    "softMaxValue": 5,
+    "isProjectCommodity": false
+  },
+  {
+    "id": 3,
+    "name": "Wheat, Winter",
+    "unit": "bushels/acre",
+    "hardMinValue": 0,
+    "hardMaxValue": 300,
+    "softMinValue": 45,
+    "softMaxValue": 255,
+    "isProjectCommodity": true
+  },
+  {
+    "id": 82,
+    "name": "Wheat, Winter (Silage)",
+    "unit": "tons/acre",
+    "hardMinValue": 1,
+    "hardMaxValue": 9,
+    "softMinValue": 2,
+    "softMaxValue": 6,
+    "isProjectCommodity": false
+  }
+]
