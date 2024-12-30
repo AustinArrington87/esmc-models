@@ -763,7 +763,7 @@ def process_producer_events(producer_ids, specific_year=None):
 # Usage -- FROM EXCEL Sheet 
 # Usage
 if __name__ == "__main__":
-    excel_path = 'fert_data.xlsx'
+    excel_path = 'mmrv_data.xlsx'
     fertilizers_json_path = 'fertilizers.json'
     commodities_json_path = 'commodities.json'
     
