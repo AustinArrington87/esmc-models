@@ -48,17 +48,174 @@ application_id = {
     "Other": 6
 }
 
+# tillage - eventID 3
+tillage_type = {
+  "tillageType": [
+    {
+      "id": 1,
+      "name": "Chisel",
+      "defaultDepthInInch": 7
+    },
+    {
+      "id": 16,
+      "name": "Crimp",
+      "defaultDepthInInch": 0
+    },
+    {
+      "id": 2,
+      "name": "Cultivator",
+      "defaultDepthInInch": 2.5
+    },
+    {
+      "id": 3,
+      "name": "Deep Ripping",
+      "defaultDepthInInch": 14
+    },
+    {
+      "id": 4,
+      "name": "Disc",
+      "defaultDepthInInch": 6.5
+    },
+    {
+      "id": 17,
+      "name": "Flail",
+      "defaultDepthInInch": 0
+    },
+    {
+      "id": 27,
+      "name": "Harrow",
+      "defaultDepthInInch": 1.5
+    },
+    {
+      "id": 28,
+      "name": "Harrow (heavy)",
+      "defaultDepthInInch": 2
+    },
+    {
+      "id": 29,
+      "name": "Harrow (light)",
+      "defaultDepthInInch": 1
+    },
+    {
+      "id": 18,
+      "name": "Leveler",
+      "defaultDepthInInch": 2
+    },
+    {
+      "id": 5,
+      "name": "Mulch Tiller",
+      "defaultDepthInInch": 0
+    },
+    {
+      "id": 6,
+      "name": "Offset (heavy) Disc",
+      "defaultDepthInInch": 6.5
+    },
+    {
+      "id": 15,
+      "name": "Other",
+      "defaultDepthInInch": 6.5
+    },
+    {
+      "id": 7,
+      "name": "Plow",
+      "defaultDepthInInch": 10
+    },
+    {
+      "id": 19,
+      "name": "Rake",
+      "defaultDepthInInch": 2
+    },
+    {
+      "id": 8,
+      "name": "Ridge Till",
+      "defaultDepthInInch": 7.5
+    },
+    {
+      "id": 24,
+      "name": "Rod Weed",
+      "defaultDepthInInch": 2.5
+    },
+    {
+      "id": 20,
+      "name": "Roller",
+      "defaultDepthInInch": 0
+    },
+    {
+      "id": 9,
+      "name": "Rotary Hoe",
+      "defaultDepthInInch": 6
+    },
+    {
+      "id": 10,
+      "name": "Row Cultivator",
+      "defaultDepthInInch": 2.5
+    },
+    {
+      "id": 11,
+      "name": "Strip Till",
+      "defaultDepthInInch": 7.5
+    },
+    {
+      "id": 12,
+      "name": "Strip Till Freshener",
+      "defaultDepthInInch": 7.5
+    },
+    {
+      "id": 25,
+      "name": "Subsoil",
+      "defaultDepthInInch": 17.5
+    },
+    {
+      "id": 26,
+      "name": "Sweep",
+      "defaultDepthInInch": 7
+    },
+    {
+      "id": 13,
+      "name": "Tandem (light) Disc",
+      "defaultDepthInInch": 6.5
+    },
+    {
+      "id": 14,
+      "name": "Vertical Tillage",
+      "defaultDepthInInch": 2.5
+    }
+  ]
+}
+
+# tillage residue ID
+tillage_residue = [
+  {
+    "id": 1,
+    "name": "0-15%"
+  },
+  {
+    "id": 2,
+    "name": "15-30%"
+  },
+  {
+    "id": 3,
+    "name": "30-50%"
+  },
+  {
+    "id": 4,
+    "name": ">50%"
+  }
+]
+
+
 # list projects 
 #projects = mrv.projects()
 #print(projects)
 # get project ID 
-AGIprojId = mrv.projectId('AGI SGP Market')
-print(AGIprojId)
+#AGIprojId = mrv.projectId('AGI SGP Market')
+#print(AGIprojId)
 
-AGIProducers = mrv.enrolledProducers(AGIprojId, 2024)
+#AGIProducers = mrv.enrolledProducers(AGIprojId, 2024)
 # "partner_grower_id" in AGI
 # "partner_field_id" in AGI
-print(AGIProducers)
+#print(AGIProducers)
 
 #AustinProducers = mrv.enrolledProducers('18a4db70-209d-4a93-87a9-ab3ff315fd14', 2024)
 #print(AustinProducers)
@@ -498,6 +655,177 @@ def insert_fertilizer_event(eventId, seasonIds, doneAt, applicationMethodId, fer
     print(f"Total rows affected in linked event and fertilizer details: {total_affected_rows}")
     return total_affected_rows
 
+# insert Tillage events 
+def insert_tillage_event(eventId, seasonId, doneAt, tillage_name, tillageDepth=None, rowWidth=None, stripWidth=None, residue_name=None, tillage_type_dict=None, tillage_residue_dict=None):
+    tillage_data_id = str(uuid.uuid4())
+    
+    # Get tillage type ID and name
+    tillageTypeId = get_tillage_id(tillage_name, tillage_type_dict)
+    if tillageTypeId is None:
+        print(f"Error: Tillage type '{tillage_name}' not found")
+        return 0
+    
+    if tillageDepth is None:
+        for tillage in tillage_type_dict["tillageType"]:
+            if tillage["id"] == tillageTypeId:
+                tillageDepth = tillage["defaultDepthInInch"]
+                break
+
+    tillageResidueId = get_residue_id(residue_name, tillage_residue_dict) if residue_name else None
+    
+    # Step 1: Insert tillage data
+    tillage_data_mutation = """
+    mutation insertTillageData(
+        $id: uuid,
+        $striptillWidth: smallint,
+        $striptillCultivated: smallint,
+        $tillageResidueId: Int
+    ) {
+        insertFarmTillageData(objects: {
+            id: $id,
+            striptillWidth: $striptillWidth,
+            striptillCultivated: $striptillCultivated,
+            tillageResidueId: $tillageResidueId
+        }) {
+            affected_rows
+        }
+    }
+    """
+    
+    tillage_variables = {
+        "id": tillage_data_id
+    }
+    
+    if rowWidth is not None:
+        tillage_variables["striptillCultivated"] = rowWidth
+    if stripWidth is not None:
+        tillage_variables["striptillWidth"] = stripWidth
+    if tillageResidueId is not None:
+        tillage_variables["tillageResidueId"] = tillageResidueId
+
+    response = requests.post(url, json={'query': tillage_data_mutation, 'variables': tillage_variables}, headers=headers)
+    
+    if response.status_code == 200:
+        response_data = response.json()
+        if 'errors' not in response_data:
+            print(f"Tillage data created with ID: {tillage_data_id}")
+        else:
+            print(f"Failed to create tillage data with errors: {response_data['errors']}")
+            return 0
+    else:
+        print(f"Failed to create tillage data with status code {response.status_code}")
+        print(response.text)
+        return 0
+
+    # Step 2: Insert event data with tillageDepth 
+    event_data_mutation = """
+    mutation insertEventData(
+        $eventId: Int,
+        $seasonId: uuid,
+        $doneAt: date,
+        $tillageDataId: uuid,
+        $tillageDepth: numeric
+    ) {
+        insertFarmEventData(objects: {
+            eventId: $eventId,
+            seasonId: $seasonId,
+            doneAt: $doneAt,
+            tillageDataId: $tillageDataId,
+            tillageDepth: $tillageDepth
+        }) {
+            affected_rows
+        }
+    }
+    """
+    
+    event_variables = {
+        "eventId": eventId,
+        "seasonId": seasonId,
+        "doneAt": doneAt,
+        "tillageDataId": tillage_data_id,
+        "tillageDepth": tillageDepth
+    }
+    
+    response = requests.post(url, json={'query': event_data_mutation, 'variables': event_variables}, headers=headers)
+    
+    if response.status_code == 200:
+        response_data = response.json()
+        if 'errors' not in response_data:
+            affected_rows = response_data['data']['insertFarmEventData']['affected_rows']
+            print(f"Event created and linked to tillage data. Rows affected: {affected_rows}")
+            return affected_rows
+        else:
+            print(f"Failed to create event with errors: {response_data['errors']}")
+            return 0
+    else:
+        print(f"HTTP request failed with status code {response.status_code}")
+        print(response.text)
+        return 0
+
+    # Step 2: Insert event data with tillageDepth and tillageTypeId
+    event_data_mutation = """
+    mutation insertEventData(
+        $eventId: Int,
+        $seasonId: uuid,
+        $doneAt: date,
+        $tillageDataId: uuid,
+        $tillageDepth: numeric,
+        $tillageTypeId: smallint
+    ) {
+        insertFarmEventData(objects: {
+            eventId: $eventId,
+            seasonId: $seasonId,
+            doneAt: $doneAt,
+            tillageDataId: $tillageDataId,
+            tillageDepth: $tillageDepth,
+            tillageTypeId: $tillageTypeId
+        }) {
+            affected_rows
+        }
+    }
+    """
+    
+    event_variables = {
+        "eventId": eventId,
+        "seasonId": seasonId,
+        "doneAt": doneAt,
+        "tillageDataId": tillage_data_id,
+        "tillageDepth": tillageDepth,
+        "tillageTypeId": tillageTypeId
+    }
+    
+    response = requests.post(url, json={'query': event_data_mutation, 'variables': event_variables}, headers=headers)
+    
+    if response.status_code == 200:
+        response_data = response.json()
+        if 'errors' not in response_data:
+            affected_rows = response_data['data']['insertFarmEventData']['affected_rows']
+            print(f"Event created and linked to tillage data. Rows affected: {affected_rows}")
+            return affected_rows
+        else:
+            print(f"Failed to create event with errors: {response_data['errors']}")
+            return 0
+    else:
+        print(f"HTTP request failed with status code {response.status_code}")
+        print(response.text)
+        return 0
+
+# Load tillage IDs
+def get_tillage_id(tillage_name, tillage_type_dict):
+    """Get tillage type ID from name."""
+    for tillage in tillage_type_dict["tillageType"]:
+        if tillage["name"] == tillage_name:
+            return tillage["id"]
+    return None
+
+# Load tillage Residue IDs
+def get_residue_id(residue_name, tillage_residue_dict):
+    """Get tillage residue ID from name."""
+    for residue in tillage_residue_dict:
+        if residue["name"] == residue_name:
+            return residue["id"]
+    return None
+
 # load fert methods 
 def load_fertilizer_mappings(json_path):
     """Load fertilizer mappings from JSON file."""
@@ -759,39 +1087,88 @@ def process_producer_events(producer_ids, specific_year=None):
 # )
 
 ######
-
-# Usage -- FROM EXCEL Sheet 
-# Usage
+# Example usage Tillage - Hardcoded 
+# Usage examples
 if __name__ == "__main__":
-    excel_path = 'mmrv_data.xlsx'
-    fertilizers_json_path = 'fertilizers.json'
-    commodities_json_path = 'commodities.json'
+   
+    # Get seasons for multiple fields
+    fields = [
+        '1be67eef-fe42-493d-b0d4-957b379d4621',
+        '97e81cfb-44cc-4dc2-a4fa-3ef99d4eaa3a', 
+        'ed4c5739-bf87-4348-86ea-c35e0e289c37',
+        '0ddf6d8f-b960-4fc1-9da3-4ed2a5575a07'
+    ]
     
-    # Process fertilizer data
-    print("\nProcessing fertilizer data...")
-    process_fertilizer_data(
-        excel_path=excel_path,
-        fertilizers_json_path=fertilizers_json_path
-    )
+    seasons = []
+    for f in fields:
+        season_id = get_season_id(f, 2024)
+        seasons.append(season_id)
+
+    # Common parameters
+    done_at = "2024-10-04"
+    tillage_name = "Strip Till"
+    residue_name = "15-30%"
     
-    # Process planting data
-    print("\nProcessing planting data...")
-    planting_rows = process_planting_data(
-        excel_path=excel_path,
-        commodities_json_path=commodities_json_path
-    )
-    print(f"Total planting events processed: {planting_rows}")
+    # For Strip Till and Strip Till Freshener, include striptill parameters
+    if tillage_name in ["Strip Till", "Strip Till Freshener"]:
+        for season_id in seasons:
+            insert_tillage_event(
+                eventId=3,
+                seasonId=season_id,
+                doneAt=done_at,
+                tillage_name=tillage_name,
+                tillageDepth=10,  # Optional: override default depth
+                rowWidth=30,      # Will be mapped to striptillCultivated
+                stripWidth=8,     # Will be mapped to striptillWidth
+                residue_name=residue_name,
+                tillage_type_dict=tillage_type,
+                tillage_residue_dict=tillage_residue
+            )
+    else:
+        # For other tillage types
+        for season_id in seasons:
+            insert_tillage_event(
+                eventId=3,
+                seasonId=season_id,
+                doneAt=done_at,
+                tillage_name=tillage_name,
+                residue_name=residue_name,
+                tillage_type_dict=tillage_type,
+                tillage_residue_dict=tillage_residue
+            )
+
+######################################################################
+# Usage -- FROM EXCEL Sheet -- BULK UPLOAD 
+# if __name__ == "__main__":
+#     excel_path = 'mmrv_data.xlsx'
+#     fertilizers_json_path = 'fertilizers.json'
+#     commodities_json_path = 'commodities.json'
     
-    # Process harvest data
-    print("\nProcessing harvest data...")
-    harvest_rows = process_harvest_data(
-        excel_path=excel_path,
-        commodities_json_path=commodities_json_path
-    )
-    print(f"Total harvest events processed: {harvest_rows}")
+#     # Process fertilizer data
+#     print("\nProcessing fertilizer data...")
+#     process_fertilizer_data(
+#         excel_path=excel_path,
+#         fertilizers_json_path=fertilizers_json_path
+#     )
+    
+#     # Process planting data
+#     print("\nProcessing planting data...")
+#     planting_rows = process_planting_data(
+#         excel_path=excel_path,
+#         commodities_json_path=commodities_json_path
+#     )
+#     print(f"Total planting events processed: {planting_rows}")
+    
+#     # Process harvest data
+#     print("\nProcessing harvest data...")
+#     harvest_rows = process_harvest_data(
+#         excel_path=excel_path,
+#         commodities_json_path=commodities_json_path
+#     )
+#     print(f"Total harvest events processed: {harvest_rows}")
 
 ################################################
-# Example Usage, Planting and Harvest - DO IT THIS WAY IF YOU'RE RUNNIGN SPECIFIC FIELDS 
+# Example Usage, Planting and Harvest - DO IT THIS WAY IF YOU'RE RUNNIGN SPECIFIC FIELDS AGI Data
 
 # # Example dictionary of producers and their field IDs
 # producers_fields = {
