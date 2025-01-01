@@ -1196,25 +1196,3 @@ if __name__ == "__main__":
 # ]
 # process_producer_events(producer_ids, specific_year=2024)
 
-######
-
-# ef920cb5-944a-4756-8b8d-6c5e20ab0f91 - M. Canny ✓ (All fields rewritten 11/29)
-# 94477c71-1741-4e73-8ff3-b01ef68d9816 - T. Nichols ✓ (All fields rewritten 11/29)
-
-# '1b8781bf-3126-474d-93ea-a6d359d60f11' C. Basinger ✓ (All fields rewritten 11/25)
-
-# '7b227522-8f36-4ecf-8bb7-1ad98d4d6c8c' - J. WILLIAMS ✓ (All fields rewritten 11/25)
-# P Rinehart - '3d72c0ce-c16c-48c0-be8c-384a0dcaff68' ✓
-# K Rinehart - '76e43cc9-2e2a-47e8-a5ae-baaefbdf0c84' ✓
-# Soybeans harvested 2023-10-09, 21.04690989 bu/ac + '' harvested 2024-06-16 213.1069567 bua/acre + Winter Wheat harvested 2024-06-17 10.8198256 bu/acre (removed from JSON)
-# P Rinehart West - '07206026-bd14-4732-b82a-1657dc68e3fa' ✓ -- missing the partner_field_id, also empty yield Sorghum (removed from JSON)
-# Smith West - '37a2f972-90c5-40c9-a5f1-56d5f8768e27' ✓
-
-# '63b36320-8e38-454f-97c9-e4dcb3510d61' - T. Ball ✓ (All fields rewritten 11/29)
-# Krueger W - 'fe325a21-4f88-42aa-8f81-122c9ca04aec' ✓ # Soybean planting and harvest event, some conflict with a corn planting but no harvest (removed from JSON)
-# Krueger E - '9d8feb4b-d87b-49c3-99f1-73839623267f' ✓ # No Harvest events + Corn 2024-04-09, empty planting event 2024-05-10 (removed from JSON)
-
-# '37459734-03ac-4b4f-95c0-bb4311beb121' - T. Langford ✓ (All fields rewritten 11/29)
-# East of Goldie - 'ebfdbc2f-566a-4cf8-a6d6-19fece8ebe35' Winter Wheat planting and harvest + empty planting event 2024-05-09 (removed from JSON)
-# Kevin Thomas - '6115fcad-56bf-44d9-9957-da03b6cc1a84' empty plant event 2023-10-10, winter wheat harvest (removd from JSON)
-# Singletons - 'ba6184ab-31ee-4c20-b87a-1682704bca7a' empty plant event 2023-12-07 + Corn {planting }+ Sorghum harvest event but no sorghum planting (removed from JSON)
