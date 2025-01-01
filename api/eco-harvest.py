@@ -762,53 +762,6 @@ def insert_tillage_event(eventId, seasonId, doneAt, tillage_name, tillageDepth=N
         print(response.text)
         return 0
 
-    # Step 2: Insert event data with tillageDepth and tillageTypeId
-    event_data_mutation = """
-    mutation insertEventData(
-        $eventId: Int,
-        $seasonId: uuid,
-        $doneAt: date,
-        $tillageDataId: uuid,
-        $tillageDepth: numeric,
-        $tillageTypeId: smallint
-    ) {
-        insertFarmEventData(objects: {
-            eventId: $eventId,
-            seasonId: $seasonId,
-            doneAt: $doneAt,
-            tillageDataId: $tillageDataId,
-            tillageDepth: $tillageDepth,
-            tillageTypeId: $tillageTypeId
-        }) {
-            affected_rows
-        }
-    }
-    """
-    
-    event_variables = {
-        "eventId": eventId,
-        "seasonId": seasonId,
-        "doneAt": doneAt,
-        "tillageDataId": tillage_data_id,
-        "tillageDepth": tillageDepth,
-        "tillageTypeId": tillageTypeId
-    }
-    
-    response = requests.post(url, json={'query': event_data_mutation, 'variables': event_variables}, headers=headers)
-    
-    if response.status_code == 200:
-        response_data = response.json()
-        if 'errors' not in response_data:
-            affected_rows = response_data['data']['insertFarmEventData']['affected_rows']
-            print(f"Event created and linked to tillage data. Rows affected: {affected_rows}")
-            return affected_rows
-        else:
-            print(f"Failed to create event with errors: {response_data['errors']}")
-            return 0
-    else:
-        print(f"HTTP request failed with status code {response.status_code}")
-        print(response.text)
-        return 0
 
 # Load tillage IDs
 def get_tillage_id(tillage_name, tillage_type_dict):
@@ -1195,4 +1148,3 @@ if __name__ == "__main__":
 #     '94477c71-1741-4e73-8ff3-b01ef68d9816'
 # ]
 # process_producer_events(producer_ids, specific_year=2024)
-
