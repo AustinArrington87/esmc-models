@@ -986,6 +986,69 @@ def process_fertilizer_data(excel_path, fertilizers_json_path):
         # Insert fertilizer event with appropriate parameters
         insert_fertilizer_event(**params)
 
+# function to process tillage events 
+def process_tillage_data(excel_path, tillage_type_dict=None, tillage_residue_dict=None):
+    """Process tillage data from Excel sheet."""
+    # Read Excel file - specifically from the Tillage sheet
+    df = pd.read_excel(excel_path, sheet_name='Tillage')
+    
+    # Get unique field-year combinations and get season IDs
+    unique_field_years = df[['field_uuid', 'year']].drop_duplicates()
+    season_ids_by_year_field = {}
+    
+    # Get season IDs and organize them by year and field
+    for _, row in unique_field_years.iterrows():
+        field_uuid = str(row['field_uuid'])
+        year = int(row['year'])
+        season_id = get_season_id(field_uuid, year)
+        
+        if year not in season_ids_by_year_field:
+            season_ids_by_year_field[year] = {}
+        season_ids_by_year_field[year][field_uuid] = season_id
+    
+    total_affected_rows = 0
+    # Process each tillage event
+    for _, row in df.iterrows():
+        # Get the season ID for this specific year and field
+        year = int(row['year'])
+        field_uuid = str(row['field_uuid'])
+        season_id = season_ids_by_year_field[year][field_uuid]
+        
+        # Format tillage date - handle timezone info
+        if isinstance(row['tillage_date'], str):
+            done_at = row['tillage_date'].split('T')[0]
+        else:
+            done_at = row['tillage_date'].strftime('%Y-%m-%d')
+
+        # Set row/strip width only for Strip Till and Strip Till Freshener
+        row_width = None
+        strip_width = None
+        if row['tillage_type'] in ["Strip Till", "Strip Till Freshener"]:
+            # Use get() method to safely handle missing columns
+            row_width = float(row.get('width_row')) if pd.notna(row.get('width_row')) else None
+            strip_width = float(row.get('width_till')) if pd.notna(row.get('width_till')) else None
+
+        # Get depth if provided
+        tillage_depth = float(row['depth']) if pd.notna(row['depth']) else None
+        
+        # Insert tillage event
+        affected_rows = insert_tillage_event(
+            eventId=3,  # Event ID for tillage is 3
+            seasonId=season_id,
+            doneAt=done_at,
+            tillage_name=row['tillage_type'],
+            tillageDepth=tillage_depth,
+            rowWidth=row_width,
+            stripWidth=strip_width,
+            residue_name=row['post_till_residue'] if pd.notna(row['post_till_residue']) else None,
+            tillage_type_dict=tillage_type_dict,
+            tillage_residue_dict=tillage_residue_dict
+        )
+        total_affected_rows += affected_rows if affected_rows is not None else 0
+    
+    print(f"\nTotal tillage events processed: {total_affected_rows}")
+    return total_affected_rows
+
 # function to run on all fields for a producer 
 def process_producer_events(producer_ids, specific_year=None):
     with open('cpfrs_by_grower.json') as f:
@@ -1048,83 +1111,92 @@ def process_producer_events(producer_ids, specific_year=None):
 ######
 # Example usage Tillage - Hardcoded 
 # Usage examples
-if __name__ == "__main__":
+# if __name__ == "__main__":
    
-    # Get seasons for multiple fields
-    fields = [
-        '1be67eef-fe42-493d-b0d4-957b379d4621',
-        '97e81cfb-44cc-4dc2-a4fa-3ef99d4eaa3a', 
-        'ed4c5739-bf87-4348-86ea-c35e0e289c37',
-        '0ddf6d8f-b960-4fc1-9da3-4ed2a5575a07'
-    ]
+#     # Get seasons for multiple fields
+#     fields = [
+#         '1be67eef-fe42-493d-b0d4-957b379d4621',
+#         '97e81cfb-44cc-4dc2-a4fa-3ef99d4eaa3a', 
+#         'ed4c5739-bf87-4348-86ea-c35e0e289c37',
+#         '0ddf6d8f-b960-4fc1-9da3-4ed2a5575a07'
+#     ]
     
-    seasons = []
-    for f in fields:
-        season_id = get_season_id(f, 2024)
-        seasons.append(season_id)
+#     seasons = []
+#     for f in fields:
+#         season_id = get_season_id(f, 2024)
+#         seasons.append(season_id)
 
-    # Common parameters
-    done_at = "2024-10-04"
-    tillage_name = "Strip Till"
-    residue_name = "15-30%"
+#     # Common parameters
+#     done_at = "2024-10-04"
+#     tillage_name = "Disc"
+#     residue_name = "15-30%"
     
-    # For Strip Till and Strip Till Freshener, include striptill parameters
-    if tillage_name in ["Strip Till", "Strip Till Freshener"]:
-        for season_id in seasons:
-            insert_tillage_event(
-                eventId=3,
-                seasonId=season_id,
-                doneAt=done_at,
-                tillage_name=tillage_name,
-                tillageDepth=10,  # Optional: override default depth
-                rowWidth=30,      # Will be mapped to striptillCultivated
-                stripWidth=8,     # Will be mapped to striptillWidth
-                residue_name=residue_name,
-                tillage_type_dict=tillage_type,
-                tillage_residue_dict=tillage_residue
-            )
-    else:
-        # For other tillage types
-        for season_id in seasons:
-            insert_tillage_event(
-                eventId=3,
-                seasonId=season_id,
-                doneAt=done_at,
-                tillage_name=tillage_name,
-                residue_name=residue_name,
-                tillage_type_dict=tillage_type,
-                tillage_residue_dict=tillage_residue
-            )
+#     # For Strip Till and Strip Till Freshener, include striptill parameters
+#     if tillage_name in ["Strip Till", "Strip Till Freshener"]:
+#         for season_id in seasons:
+#             insert_tillage_event(
+#                 eventId=3,
+#                 seasonId=season_id,
+#                 doneAt=done_at,
+#                 tillage_name=tillage_name,
+#                 tillageDepth=10,  # Optional: override default depth
+#                 rowWidth=30,      # Will be mapped to striptillCultivated
+#                 stripWidth=8,     # Will be mapped to striptillWidth
+#                 residue_name=residue_name,
+#                 tillage_type_dict=tillage_type,
+#                 tillage_residue_dict=tillage_residue
+#             )
+#     else:
+#         # For other tillage types
+#         for season_id in seasons:
+#             insert_tillage_event(
+#                 eventId=3,
+#                 seasonId=season_id,
+#                 doneAt=done_at,
+#                 tillage_name=tillage_name,
+#                 residue_name=residue_name,
+#                 tillage_type_dict=tillage_type,
+#                 tillage_residue_dict=tillage_residue
+#             )
 
 ######################################################################
 # Usage -- FROM EXCEL Sheet -- BULK UPLOAD 
-# if __name__ == "__main__":
-#     excel_path = 'mmrv_data.xlsx'
-#     fertilizers_json_path = 'fertilizers.json'
-#     commodities_json_path = 'commodities.json'
+if __name__ == "__main__":
+    excel_path = 'mmrv_data.xlsx'
+    fertilizers_json_path = 'fertilizers.json'
+    commodities_json_path = 'commodities.json'
     
-#     # Process fertilizer data
-#     print("\nProcessing fertilizer data...")
-#     process_fertilizer_data(
-#         excel_path=excel_path,
-#         fertilizers_json_path=fertilizers_json_path
-#     )
+    # Process fertilizer data
+    print("\nProcessing fertilizer data...")
+    process_fertilizer_data(
+        excel_path=excel_path,
+        fertilizers_json_path=fertilizers_json_path
+    )
     
-#     # Process planting data
-#     print("\nProcessing planting data...")
-#     planting_rows = process_planting_data(
-#         excel_path=excel_path,
-#         commodities_json_path=commodities_json_path
-#     )
-#     print(f"Total planting events processed: {planting_rows}")
+    # Process planting data
+    print("\nProcessing planting data...")
+    planting_rows = process_planting_data(
+        excel_path=excel_path,
+        commodities_json_path=commodities_json_path
+    )
+    print(f"Total planting events processed: {planting_rows}")
     
-#     # Process harvest data
-#     print("\nProcessing harvest data...")
-#     harvest_rows = process_harvest_data(
-#         excel_path=excel_path,
-#         commodities_json_path=commodities_json_path
-#     )
-#     print(f"Total harvest events processed: {harvest_rows}")
+    # Process harvest data
+    print("\nProcessing harvest data...")
+    harvest_rows = process_harvest_data(
+        excel_path=excel_path,
+        commodities_json_path=commodities_json_path
+    )
+    print(f"Total harvest events processed: {harvest_rows}")
+
+    # Process tillage data
+    tillage_rows = process_tillage_data(
+        excel_path='mmrv_data.xlsx',
+        tillage_type_dict=tillage_type,
+        tillage_residue_dict=tillage_residue
+    )
+
+    print(f"Total tillage events processed: {tillage_rows}")
 
 ################################################
 # Example Usage, Planting and Harvest - DO IT THIS WAY IF YOU'RE RUNNIGN SPECIFIC FIELDS AGI Data
