@@ -209,19 +209,22 @@ tillage_residue = [
 #projects = mrv.projects()
 #print(projects)
 # get project ID 
-#AGIprojId = mrv.projectId('AGI SGP Market')
-#print(AGIprojId)
+#CIFprojId = mrv.projectId('CIF Climate Smart')
+#print(CIFprojId)
 
-#AGIProducers = mrv.enrolledProducers(AGIprojId, 2024)
+#CIFProducers = mrv.enrolledProducers(CIFprojId, 2024)
 # "partner_grower_id" in AGI
 # "partner_field_id" in AGI
-#print(AGIProducers)
+#print(CIFProducers)
 
 #AustinProducers = mrv.enrolledProducers('18a4db70-209d-4a93-87a9-ab3ff315fd14', 2024)
 #print(AustinProducers)
 
 #BarringtonFields = mrv.fieldSummary('1a8b2fd2-5a46-4d70-8a54-952871f43fca', 2024)
 #print(BarringtonFields) 
+
+#DavisFields = mrv.fieldSummary('cc0db789-3230-435a-927e-fd7432b6e7ed', 2024)
+#print(DavisFields)
 
 ########################
 
@@ -785,6 +788,14 @@ def get_residue_id(residue_name, tillage_residue_dict):
             return residue["id"]
     return None
 
+# get cover crop Species ID
+def get_cover_crop_species_id(crop_name, cover_crops_dict):
+    """Get cover crop species ID from name."""
+    for crop in cover_crops_dict:
+        if crop["name"] == crop_name:
+            return crop["coverCropSpeciesId"], crop["isProjectCoverCropSpecies"]
+    return None, None
+
 # load fert methods 
 def load_fertilizer_mappings(json_path):
     """Load fertilizer mappings from JSON file."""
@@ -1069,6 +1080,76 @@ def process_producer_events(producer_ids, specific_year=None):
                 parse_planting_events(producer_id, field_id, specific_year)
                 parse_harvest_events(producer_id, field_id, specific_year)
 
+
+# COVER CROPPING 
+def insert_cover_crop_event(eventId, seasonId, doneAt):
+    """Insert cover crop event and return event data ID."""
+    event_data_mutation = """
+    mutation insertEventData(
+        $eventId: Int,
+        $seasonId: uuid,
+        $doneAt: date
+    ) {
+        insertFarmEventData(objects: {
+            eventId: $eventId,
+            seasonId: $seasonId,
+            doneAt: $doneAt
+        }) {
+            affected_rows
+            returning {
+                id
+            }
+        }
+    }
+    """
+    
+    event_variables = {
+        "eventId": eventId,
+        "seasonId": seasonId,
+        "doneAt": doneAt
+    }
+    
+    response = requests.post(url, json={'query': event_data_mutation, 'variables': event_variables}, headers=headers)
+    
+    if response.status_code != 200 or 'errors' in response.json():
+        print("Failed to create event data")
+        return None
+        
+    event_data_id = response.json()['data']['insertFarmEventData']['returning'][0]['id']
+    print(f"Event data created with ID: {event_data_id}")
+    return event_data_id
+
+def process_cover_crop_data(excel_path, cover_crops_json_path):
+    """Process cover crop data from Excel sheet."""
+    df = pd.read_excel(excel_path, sheet_name='Cover Crop')
+    
+    with open(cover_crops_json_path, 'r') as f:
+        cover_crops_dict = json.load(f)
+    
+    grouped = df.groupby(['field_uuid', 'year', 'planting_date'])
+    total_affected_rows = 0
+    
+    for (field_uuid, year, planting_date), group in grouped:
+        season_id = get_season_id(field_uuid, int(year))
+        if not season_id:
+            continue
+            
+        # Format planting date
+        done_at = planting_date.split('T')[0] if isinstance(planting_date, str) else planting_date.strftime('%Y-%m-%d')
+        
+        # Create event and get event_data_id
+        event_data_id = insert_cover_crop_event(
+            eventId=13,
+            seasonId=season_id,
+            doneAt=done_at
+        )
+        
+        if event_data_id:
+            total_affected_rows += 1
+    
+    print(f"\nTotal cover crop events processed: {total_affected_rows}")
+    return total_affected_rows
+
 ################################################
 # Example usage - Fertilizer application --- MANUAL / Hardcoded 
 
@@ -1083,6 +1164,8 @@ def process_producer_events(producer_ids, specific_year=None):
 # for f in fields:
 #     season_id = get_season_id(f, 2024)
 #     seasons.append(season_id)
+
+#get_season_id('15bc2e3-a861-4128-94be-327888bf37ec', 2023)
 
 
 # ##################
@@ -1162,41 +1245,50 @@ def process_producer_events(producer_ids, specific_year=None):
 ######################################################################
 # Usage -- FROM EXCEL Sheet -- BULK UPLOAD 
 if __name__ == "__main__":
-    excel_path = 'mmrv_data.xlsx'
+    #excel_path = 'mmrv_data.xlsx'
+    #excel_path = 'cif_data.xlsx'
+    excel_path = 'mmrv_data_template.xlsx'
     fertilizers_json_path = 'fertilizers.json'
     commodities_json_path = 'commodities.json'
     
-    # Process fertilizer data
-    print("\nProcessing fertilizer data...")
-    process_fertilizer_data(
-        excel_path=excel_path,
-        fertilizers_json_path=fertilizers_json_path
-    )
+    # # Process fertilizer data
+    # print("\nProcessing fertilizer data...")
+    # process_fertilizer_data(
+    #     excel_path=excel_path,
+    #     fertilizers_json_path=fertilizers_json_path
+    # )
     
-    # Process planting data
-    print("\nProcessing planting data...")
-    planting_rows = process_planting_data(
-        excel_path=excel_path,
-        commodities_json_path=commodities_json_path
-    )
-    print(f"Total planting events processed: {planting_rows}")
+    # # Process planting data
+    # print("\nProcessing planting data...")
+    # planting_rows = process_planting_data(
+    #     excel_path=excel_path,
+    #     commodities_json_path=commodities_json_path
+    # )
+    # print(f"Total planting events processed: {planting_rows}")
     
-    # Process harvest data
-    print("\nProcessing harvest data...")
-    harvest_rows = process_harvest_data(
-        excel_path=excel_path,
-        commodities_json_path=commodities_json_path
-    )
-    print(f"Total harvest events processed: {harvest_rows}")
+    # # Process harvest data
+    # print("\nProcessing harvest data...")
+    # harvest_rows = process_harvest_data(
+    #     excel_path=excel_path,
+    #     commodities_json_path=commodities_json_path
+    # )
+    # print(f"Total harvest events processed: {harvest_rows}")
 
-    # Process tillage data
-    tillage_rows = process_tillage_data(
-        excel_path='mmrv_data.xlsx',
-        tillage_type_dict=tillage_type,
-        tillage_residue_dict=tillage_residue
-    )
+    # # Process tillage data
+    # tillage_rows = process_tillage_data(
+    #     excel_path='mmrv_data.xlsx',
+    #     tillage_type_dict=tillage_type,
+    #     tillage_residue_dict=tillage_residue
+    # )
 
-    print(f"Total tillage events processed: {tillage_rows}")
+    # print(f"Total tillage events processed: {tillage_rows}")
+
+    print("\nProcessing cover crop data...")
+    cc_rows = process_cover_crop_data(
+        excel_path='mmrv_data_template.xlsx',
+        cover_crops_json_path='covercrops.json'
+    )
+    print(f"Total cover cropping events processed: {cc_rows}")
 
 ################################################
 # Example Usage, Planting and Harvest - DO IT THIS WAY IF YOU'RE RUNNIGN SPECIFIC FIELDS AGI Data
@@ -1228,3 +1320,24 @@ if __name__ == "__main__":
 # process_producer_events(producer_ids, specific_year=2024)
 
 ######
+
+# ef920cb5-944a-4756-8b8d-6c5e20ab0f91 - M. Canny ✓ (All fields rewritten 11/29)
+# 94477c71-1741-4e73-8ff3-b01ef68d9816 - T. Nichols ✓ (All fields rewritten 11/29)
+
+# '1b8781bf-3126-474d-93ea-a6d359d60f11' C. Basinger ✓ (All fields rewritten 11/25)
+
+# '7b227522-8f36-4ecf-8bb7-1ad98d4d6c8c' - J. WILLIAMS ✓ (All fields rewritten 11/25)
+# P Rinehart - '3d72c0ce-c16c-48c0-be8c-384a0dcaff68' ✓
+# K Rinehart - '76e43cc9-2e2a-47e8-a5ae-baaefbdf0c84' ✓
+# Soybeans harvested 2023-10-09, 21.04690989 bu/ac + '' harvested 2024-06-16 213.1069567 bua/acre + Winter Wheat harvested 2024-06-17 10.8198256 bu/acre (removed from JSON)
+# P Rinehart West - '07206026-bd14-4732-b82a-1657dc68e3fa' ✓ -- missing the partner_field_id, also empty yield Sorghum (removed from JSON)
+# Smith West - '37a2f972-90c5-40c9-a5f1-56d5f8768e27' ✓
+
+# '63b36320-8e38-454f-97c9-e4dcb3510d61' - T. Ball ✓ (All fields rewritten 11/29)
+# Krueger W - 'fe325a21-4f88-42aa-8f81-122c9ca04aec' ✓ # Soybean planting and harvest event, some conflict with a corn planting but no harvest (removed from JSON)
+# Krueger E - '9d8feb4b-d87b-49c3-99f1-73839623267f' ✓ # No Harvest events + Corn 2024-04-09, empty planting event 2024-05-10 (removed from JSON)
+
+# '37459734-03ac-4b4f-95c0-bb4311beb121' - T. Langford ✓ (All fields rewritten 11/29)
+# East of Goldie - 'ebfdbc2f-566a-4cf8-a6d6-19fece8ebe35' Winter Wheat planting and harvest + empty planting event 2024-05-09 (removed from JSON)
+# Kevin Thomas - '6115fcad-56bf-44d9-9957-da03b6cc1a84' empty plant event 2023-10-10, winter wheat harvest (removd from JSON)
+# Singletons - 'ba6184ab-31ee-4c20-b87a-1682704bca7a' empty plant event 2023-12-07 + Corn {planting }+ Sorghum harvest event but no sorghum planting (removed from JSON)
