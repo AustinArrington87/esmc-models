@@ -1,0 +1,218 @@
+[
+      {
+        "id": null,
+        "name": "Barley",
+        "percent": null,
+        "coverCropSpeciesId": 2,
+        "coverCropSpeciesName": "Barley",
+        "eventDataId": "daab31a7-ece4-4339-9894-8ce844944669",
+        "isProjectCoverCropSpecies": true
+      },
+      {
+        "id": null,
+        "name": "Beans, Fava",
+        "percent": null,
+        "coverCropSpeciesId": 22,
+        "coverCropSpeciesName": "Beans, Fava",
+        "eventDataId": "daab31a7-ece4-4339-9894-8ce844944669",
+        "isProjectCoverCropSpecies": false
+      },
+      {
+        "id": null,
+        "name": "Beans, Mung",
+        "percent": null,
+        "coverCropSpeciesId": 23,
+        "coverCropSpeciesName": "Beans, Mung",
+        "eventDataId": "daab31a7-ece4-4339-9894-8ce844944669",
+        "isProjectCoverCropSpecies": false
+      },
+      {
+        "id": null,
+        "name": "Buckwheat",
+        "percent": null,
+        "coverCropSpeciesId": 16,
+        "coverCropSpeciesName": "Buckwheat",
+        "eventDataId": "daab31a7-ece4-4339-9894-8ce844944669",
+        "isProjectCoverCropSpecies": true
+      },
+      {
+        "id": null,
+        "name": "Clover",
+        "percent": 40,
+        "coverCropSpeciesId": 4,
+        "coverCropSpeciesName": "Clover",
+        "eventDataId": "daab31a7-ece4-4339-9894-8ce844944669",
+        "isProjectCoverCropSpecies": true
+      },
+      {
+        "id": null,
+        "name": "Lentil",
+        "percent": null,
+        "coverCropSpeciesId": 14,
+        "coverCropSpeciesName": "Lentil",
+        "eventDataId": "daab31a7-ece4-4339-9894-8ce844944669",
+        "isProjectCoverCropSpecies": true
+      },
+      {
+        "id": null,
+        "name": "Millet",
+        "percent": null,
+        "coverCropSpeciesId": 19,
+        "coverCropSpeciesName": "Millet",
+        "eventDataId": "daab31a7-ece4-4339-9894-8ce844944669",
+        "isProjectCoverCropSpecies": false
+      },
+      {
+        "id": null,
+        "name": "Mustard",
+        "percent": null,
+        "coverCropSpeciesId": 20,
+        "coverCropSpeciesName": "Mustard",
+        "eventDataId": "daab31a7-ece4-4339-9894-8ce844944669",
+        "isProjectCoverCropSpecies": false
+      },
+      {
+        "id": null,
+        "name": "Oats",
+        "percent": null,
+        "coverCropSpeciesId": 5,
+        "coverCropSpeciesName": "Oats",
+        "eventDataId": "daab31a7-ece4-4339-9894-8ce844944669",
+        "isProjectCoverCropSpecies": true
+      },
+      {
+        "id": null,
+        "name": "Other",
+        "percent": null,
+        "coverCropSpeciesId": 9,
+        "coverCropSpeciesName": "Other",
+        "eventDataId": "daab31a7-ece4-4339-9894-8ce844944669",
+        "isProjectCoverCropSpecies": true
+      },
+      {
+        "id": null,
+        "name": "Pea",
+        "percent": null,
+        "coverCropSpeciesId": 13,
+        "coverCropSpeciesName": "Pea",
+        "eventDataId": "daab31a7-ece4-4339-9894-8ce844944669",
+        "isProjectCoverCropSpecies": true
+      },
+      {
+        "id": null,
+        "name": "Pea, Chinese Red/Cowpea",
+        "percent": null,
+        "coverCropSpeciesId": 24,
+        "coverCropSpeciesName": "Pea, Chinese Red/Cowpea",
+        "eventDataId": "daab31a7-ece4-4339-9894-8ce844944669",
+        "isProjectCoverCropSpecies": false
+      },
+      {
+        "id": null,
+        "name": "Radish",
+        "percent": null,
+        "coverCropSpeciesId": 6,
+        "coverCropSpeciesName": "Radish",
+        "eventDataId": "daab31a7-ece4-4339-9894-8ce844944669",
+        "isProjectCoverCropSpecies": true
+      },
+      {
+        "id": null,
+        "name": "Resident vegetation",
+        "percent": 20,
+        "coverCropSpeciesId": 18,
+        "coverCropSpeciesName": "Resident vegetation",
+        "eventDataId": "daab31a7-ece4-4339-9894-8ce844944669",
+        "isProjectCoverCropSpecies": true
+      },
+      {
+        "id": null,
+        "name": "Rye, Annual Grass",
+        "percent": null,
+        "coverCropSpeciesId": 1,
+        "coverCropSpeciesName": "Rye, Annual Grass",
+        "eventDataId": "daab31a7-ece4-4339-9894-8ce844944669",
+        "isProjectCoverCropSpecies": true
+      },
+      {
+        "id": null,
+        "name": "Rye, Cereal Winter",
+        "percent": null,
+        "coverCropSpeciesId": 3,
+        "coverCropSpeciesName": "Rye, Cereal Winter",
+        "eventDataId": "daab31a7-ece4-4339-9894-8ce844944669",
+        "isProjectCoverCropSpecies": true
+      },
+      {
+        "id": null,
+        "name": "Safflower",
+        "percent": null,
+        "coverCropSpeciesId": 25,
+        "coverCropSpeciesName": "Safflower",
+        "eventDataId": "daab31a7-ece4-4339-9894-8ce844944669",
+        "isProjectCoverCropSpecies": false
+      },
+      {
+        "id": null,
+        "name": "Sunflowers",
+        "percent": null,
+        "coverCropSpeciesId": 21,
+        "coverCropSpeciesName": "Sunflowers",
+        "eventDataId": "daab31a7-ece4-4339-9894-8ce844944669",
+        "isProjectCoverCropSpecies": false
+      },
+      {
+        "id": null,
+        "name": "Sunn Hemp",
+        "percent": null,
+        "coverCropSpeciesId": 17,
+        "coverCropSpeciesName": "Sunn Hemp",
+        "eventDataId": "daab31a7-ece4-4339-9894-8ce844944669",
+        "isProjectCoverCropSpecies": true
+      },
+      {
+        "id": null,
+        "name": "Triticale",
+        "percent": null,
+        "coverCropSpeciesId": 12,
+        "coverCropSpeciesName": "Triticale",
+        "eventDataId": "daab31a7-ece4-4339-9894-8ce844944669",
+        "isProjectCoverCropSpecies": true
+      },
+      {
+        "id": null,
+        "name": "Turnip",
+        "percent": null,
+        "coverCropSpeciesId": 7,
+        "coverCropSpeciesName": "Turnip",
+        "eventDataId": "daab31a7-ece4-4339-9894-8ce844944669",
+        "isProjectCoverCropSpecies": true
+      },
+      {
+        "id": null,
+        "name": "Vetch",
+        "percent": null,
+        "coverCropSpeciesId": 10,
+        "coverCropSpeciesName": "Vetch",
+        "eventDataId": "daab31a7-ece4-4339-9894-8ce844944669",
+        "isProjectCoverCropSpecies": true
+      },
+      {
+        "id": null,
+        "name": "Wheat",
+        "percent": null,
+        "coverCropSpeciesId": 8,
+        "coverCropSpeciesName": "Wheat",
+        "eventDataId": "daab31a7-ece4-4339-9894-8ce844944669",
+        "isProjectCoverCropSpecies": true
+      },
+      {
+        "id": null,
+        "name": "Wheatgrass",
+        "percent": 40,
+        "coverCropSpeciesId": 15,
+        "coverCropSpeciesName": "Wheatgrass",
+        "eventDataId": "daab31a7-ece4-4339-9894-8ce844944669",
+        "isProjectCoverCropSpecies": true
+      }
+    ]
