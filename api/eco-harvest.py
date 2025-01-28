@@ -1081,9 +1081,8 @@ def process_producer_events(producer_ids, specific_year=None):
                 parse_harvest_events(producer_id, field_id, specific_year)
 
 
-# COVER CROPPING 
-def insert_cover_crop_event(eventId, seasonId, doneAt):
-    """Insert cover crop event and return event data ID."""
+def insert_cover_crop_event(eventId, seasonId, doneAt, coverCrops=None):
+    # Step 1 stays the same...
     event_data_mutation = """
     mutation insertEventData(
         $eventId: Int,
@@ -1117,6 +1116,45 @@ def insert_cover_crop_event(eventId, seasonId, doneAt):
         
     event_data_id = response.json()['data']['insertFarmEventData']['returning'][0]['id']
     print(f"Event data created with ID: {event_data_id}")
+
+    # Step 2: Modified with correct camelCase field names
+    if coverCrops:
+        for crop in coverCrops:
+            cover_crop_mutation = """
+            mutation insertCoverCrop(
+                $eventDataId: uuid!,
+                $coverCropSpeciesId: Int!,
+                $percent: numeric!
+            ) {
+                insertFarmCoverCrop(objects: {
+                    eventDataId: $eventDataId,
+                    coverCropSpeciesId: $coverCropSpeciesId,
+                    percent: $percent
+                }) {
+                    affected_rows
+                }
+            }
+            """
+            
+            cover_crop_variables = {
+                "eventDataId": event_data_id,
+                "coverCropSpeciesId": crop["speciesId"],
+                "percent": crop["percent"]
+            }
+            
+            print(f"\nTrying to add {crop['name']} with:", cover_crop_variables)
+            
+            response = requests.post(url, 
+                                   json={'query': cover_crop_mutation, 
+                                        'variables': cover_crop_variables}, 
+                                   headers=headers)
+            
+            if response.status_code == 200 and 'errors' not in response.json():
+                print(f"Added cover crop species {crop['name']} with {crop['percent']}%")
+            else:
+                print(f"Failed to add cover crop species {crop['name']}")
+                print("Response content:", response.text)
+
     return event_data_id
 
 def process_cover_crop_data(excel_path, cover_crops_json_path):
@@ -1165,7 +1203,7 @@ def process_cover_crop_data(excel_path, cover_crops_json_path):
 #     season_id = get_season_id(f, 2024)
 #     seasons.append(season_id)
 
-#get_season_id('15bc2e3-a861-4128-94be-327888bf37ec', 2023)
+#get_season_id('1be67eef-fe42-493d-b0d4-957b379d4621', 2024)
 
 
 # ##################
@@ -1244,17 +1282,17 @@ def process_cover_crop_data(excel_path, cover_crops_json_path):
 
 ######################################################################
 # Usage -- FROM EXCEL Sheet -- BULK UPLOAD 
-if __name__ == "__main__":
-    #excel_path = 'mmrv_data.xlsx'
-    #excel_path = 'cif_data.xlsx'
-    excel_path = 'mmrv_data_template.xlsx'
-    fertilizers_json_path = 'fertilizers.json'
-    commodities_json_path = 'commodities.json'
+# if __name__ == "__main__":
+#     #excel_path = 'mmrv_data.xlsx'
+#     #excel_path = 'cif_data.xlsx'
+#     excel_path = 'mmrv_data_template.xlsx'
+#     fertilizers_json_path = 'fertilizers.json'
+#     commodities_json_path = 'commodities.json'
     
     # # Process fertilizer data
     # print("\nProcessing fertilizer data...")
     # process_fertilizer_data(
-    #     excel_path=excel_path,
+    #     excel_path=excel_path
     #     fertilizers_json_path=fertilizers_json_path
     # )
     
@@ -1283,15 +1321,28 @@ if __name__ == "__main__":
 
     # print(f"Total tillage events processed: {tillage_rows}")
 
-    print("\nProcessing cover crop data...")
-    cc_rows = process_cover_crop_data(
-        excel_path='mmrv_data_template.xlsx',
-        cover_crops_json_path='covercrops.json'
-    )
-    print(f"Total cover cropping events processed: {cc_rows}")
+    # print("\nProcessing cover crop data...")
+    # cc_rows = process_cover_crop_data(
+    #     excel_path='mmrv_data_template.xlsx',
+    #     cover_crops_json_path='covercrops.json'
+    # )
+    # print(f"Total cover cropping events processed: {cc_rows}")
 
 ################################################
 # Example Usage, Planting and Harvest - DO IT THIS WAY IF YOU'RE RUNNIGN SPECIFIC FIELDS AGI Data
+
+# CC 
+cover_crops = [
+    {"speciesId": 16, "percent": 60, "name": "Buckwheat"},
+    {"speciesId": 2, "percent": 40, "name": "Barley"}
+]
+
+result = insert_cover_crop_event(
+    eventId=13,
+    seasonId="1a8727fa-91d0-45ee-bcfe-25841c0fa83b",
+    doneAt="2024-01-27",
+    coverCrops=cover_crops
+)
 
 # # Example dictionary of producers and their field IDs
 # producers_fields = {
