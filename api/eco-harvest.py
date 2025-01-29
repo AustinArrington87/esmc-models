@@ -1081,18 +1081,110 @@ def process_producer_events(producer_ids, specific_year=None):
                 parse_harvest_events(producer_id, field_id, specific_year)
 
 
-def insert_cover_crop_event(eventId, seasonId, doneAt, coverCrops=None):
-    # Step 1 stays the same...
+# def insert_cover_crop_event(eventId, seasonId, doneAt, coverCrops=None):
+#     # Step 1 stays the same...
+#     event_data_mutation = """
+#     mutation insertEventData(
+#         $eventId: Int,
+#         $seasonId: uuid,
+#         $doneAt: date
+#     ) {
+#         insertFarmEventData(objects: {
+#             eventId: $eventId,
+#             seasonId: $seasonId,
+#             doneAt: $doneAt
+#         }) {
+#             affected_rows
+#             returning {
+#                 id
+#             }
+#         }
+#     }
+#     """
+    
+#     event_variables = {
+#         "eventId": eventId,
+#         "seasonId": seasonId,
+#         "doneAt": doneAt
+#     }
+    
+#     response = requests.post(url, json={'query': event_data_mutation, 'variables': event_variables}, headers=headers)
+    
+#     if response.status_code != 200 or 'errors' in response.json():
+#         print("Failed to create event data")
+#         return None
+        
+#     event_data_id = response.json()['data']['insertFarmEventData']['returning'][0]['id']
+#     print(f"Event data created with ID: {event_data_id}")
+
+#     # Step 2: Modified with correct camelCase field names
+#     if coverCrops:
+#         for crop in coverCrops:
+#             cover_crop_mutation = """
+#             mutation insertCoverCrop(
+#                 $eventDataId: uuid!,
+#                 $coverCropSpeciesId: Int!,
+#                 $percent: numeric!
+#             ) {
+#                 insertFarmCoverCrop(objects: {
+#                     eventDataId: $eventDataId,
+#                     coverCropSpeciesId: $coverCropSpeciesId,
+#                     percent: $percent
+#                 }) {
+#                     affected_rows
+#                 }
+#             }
+#             """
+            
+#             cover_crop_variables = {
+#                 "eventDataId": event_data_id,
+#                 "coverCropSpeciesId": crop["speciesId"],
+#                 "percent": crop["percent"]
+#             }
+            
+#             print(f"\nTrying to add {crop['name']} with:", cover_crop_variables)
+            
+#             response = requests.post(url, 
+#                                    json={'query': cover_crop_mutation, 
+#                                         'variables': cover_crop_variables}, 
+#                                    headers=headers)
+            
+#             if response.status_code == 200 and 'errors' not in response.json():
+#                 print(f"Added cover crop species {crop['name']} with {crop['percent']}%")
+#             else:
+#                 print(f"Failed to add cover crop species {crop['name']}")
+#                 print("Response content:", response.text)
+
+#     return event_data_id
+
+def insert_cover_crop_event(eventId, seasonId, doneAt, coverCrops=None, seedingRate=None, isAerialSeeding=None):
+    """
+    Insert cover crop event and associated details.
+    
+    Args:
+        eventId: Int - The event identifier
+        seasonId: uuid - Season UUID
+        doneAt: date - When the event occurred
+        coverCrops: List[Dict] - Optional list of cover crops with structure: 
+                                [{"speciesId": int, "percent": float, "name": str}]
+        seedingRate: float - Optional seeding rate
+        isAerialSeeding: bool - Optional flag for aerial seeding
+    """
+    # Step 1: Create event with additional fields
     event_data_mutation = """
     mutation insertEventData(
         $eventId: Int,
         $seasonId: uuid,
-        $doneAt: date
+        $doneAt: date,
+        $coverCropSeedingRate: numeric,
+        $isCoverCropSeededAerially: Boolean
     ) {
         insertFarmEventData(objects: {
             eventId: $eventId,
             seasonId: $seasonId,
-            doneAt: $doneAt
+            doneAt: $doneAt,
+            coverCropSeedingRate: $coverCropSeedingRate,
+            isCoverCropSeededAerially: $isCoverCropSeededAerially
         }) {
             affected_rows
             returning {
@@ -1105,7 +1197,9 @@ def insert_cover_crop_event(eventId, seasonId, doneAt, coverCrops=None):
     event_variables = {
         "eventId": eventId,
         "seasonId": seasonId,
-        "doneAt": doneAt
+        "doneAt": doneAt,
+        "coverCropSeedingRate": seedingRate,
+        "isCoverCropSeededAerially": isAerialSeeding
     }
     
     response = requests.post(url, json={'query': event_data_mutation, 'variables': event_variables}, headers=headers)
@@ -1117,7 +1211,7 @@ def insert_cover_crop_event(eventId, seasonId, doneAt, coverCrops=None):
     event_data_id = response.json()['data']['insertFarmEventData']['returning'][0]['id']
     print(f"Event data created with ID: {event_data_id}")
 
-    # Step 2: Modified with correct camelCase field names
+    # Step 2: Add cover crop species data (unchanged)
     if coverCrops:
         for crop in coverCrops:
             cover_crop_mutation = """
@@ -1156,6 +1250,7 @@ def insert_cover_crop_event(eventId, seasonId, doneAt, coverCrops=None):
                 print("Response content:", response.text)
 
     return event_data_id
+
 
 def process_cover_crop_data(excel_path, cover_crops_json_path):
     """Process cover crop data from Excel sheet."""
@@ -1339,11 +1434,12 @@ cover_crops = [
 
 result = insert_cover_crop_event(
     eventId=13,
-    seasonId="1a8727fa-91d0-45ee-bcfe-25841c0fa83b",
+    seasonId=get_season_id('1be67eef-fe42-493d-b0d4-957b379d4621', 2024),
     doneAt="2024-01-27",
-    coverCrops=cover_crops
+    coverCrops=cover_crops,
+    seedingRate=50,        # Optional
+    isAerialSeeding=True     # Optional
 )
-
 # # Example dictionary of producers and their field IDs
 # producers_fields = {
 #     "7b227522-8f36-4ecf-8bb7-1ad98d4d6c8c": ["3d72c0ce-c16c-48c0-be8c-384a0dcaff68", "76e43cc9-2e2a-47e8-a5ae-baaefbdf0c84", "07206026-bd14-4732-b82a-1657dc68e3fa", '37a2f972-90c5-40c9-a5f1-56d5f8768e27'],
