@@ -1157,7 +1157,7 @@ def process_producer_events(producer_ids, specific_year=None):
 
 #     return event_data_id
 
-def insert_cover_crop_event(eventId, seasonId, doneAt, coverCrops=None, seedingRate=None, isAerialSeeding=None):
+def insert_cover_crop_event(eventId, seasonId, doneAt, coverCrops=None, seedingRate=None, isAerialSeeding=None, terminationTypeId=None):
     """
     Insert cover crop event and associated details.
     
@@ -1169,22 +1169,25 @@ def insert_cover_crop_event(eventId, seasonId, doneAt, coverCrops=None, seedingR
                                 [{"speciesId": int, "percent": float, "name": str}]
         seedingRate: float - Optional seeding rate
         isAerialSeeding: bool - Optional flag for aerial seeding
+        terminationTypeId: int - Optional termination type (1=Chemical, 2=Grazing, 3=Roller-Crimper, 4=Tillage, 5=Winter)
     """
-    # Step 1: Create event with additional fields
+    # Step 1: Create event with additional fields including termination type
     event_data_mutation = """
     mutation insertEventData(
         $eventId: Int,
         $seasonId: uuid,
         $doneAt: date,
         $coverCropSeedingRate: numeric,
-        $isCoverCropSeededAerially: Boolean
+        $isCoverCropSeededAerially: Boolean,
+        $coverCropTerminationTypeId: Int
     ) {
         insertFarmEventData(objects: {
             eventId: $eventId,
             seasonId: $seasonId,
             doneAt: $doneAt,
             coverCropSeedingRate: $coverCropSeedingRate,
-            isCoverCropSeededAerially: $isCoverCropSeededAerially
+            isCoverCropSeededAerially: $isCoverCropSeededAerially,
+            coverCropTerminationTypeId: $coverCropTerminationTypeId
         }) {
             affected_rows
             returning {
@@ -1199,7 +1202,8 @@ def insert_cover_crop_event(eventId, seasonId, doneAt, coverCrops=None, seedingR
         "seasonId": seasonId,
         "doneAt": doneAt,
         "coverCropSeedingRate": seedingRate,
-        "isCoverCropSeededAerially": isAerialSeeding
+        "isCoverCropSeededAerially": isAerialSeeding,
+        "coverCropTerminationTypeId": terminationTypeId
     }
     
     response = requests.post(url, json={'query': event_data_mutation, 'variables': event_variables}, headers=headers)
@@ -1256,8 +1260,21 @@ def process_cover_crop_data(excel_path, cover_crops_json_path):
     """Process cover crop data from Excel sheet."""
     df = pd.read_excel(excel_path, sheet_name='Cover Crop')
     
+    # Load cover crops lookup
     with open(cover_crops_json_path, 'r') as f:
         cover_crops_dict = json.load(f)
+        
+    # Create a lookup dictionary for faster access
+    species_lookup = {species['name']: species['coverCropSpeciesId'] for species in cover_crops_dict}
+    
+    # Termination type mapping
+    termination_type_map = {
+        'Chemical': 1,
+        'Grazing': 2,
+        'Roller-Crimper': 3,
+        'Tillage': 4,
+        'Winter Termination': 5
+    }
     
     grouped = df.groupby(['field_uuid', 'year', 'planting_date'])
     total_affected_rows = 0
@@ -1265,24 +1282,67 @@ def process_cover_crop_data(excel_path, cover_crops_json_path):
     for (field_uuid, year, planting_date), group in grouped:
         season_id = get_season_id(field_uuid, int(year))
         if not season_id:
+            print(f"Warning: No season ID found for field {field_uuid}, year {year}")
             continue
             
         # Format planting date
         done_at = planting_date.split('T')[0] if isinstance(planting_date, str) else planting_date.strftime('%Y-%m-%d')
         
-        # Create event and get event_data_id
-        event_data_id = insert_cover_crop_event(
-            eventId=13,
-            seasonId=season_id,
-            doneAt=done_at
-        )
+        # Get cover crops data for this group
+        cover_crops = []
+        for _, row in group.iterrows():
+            crop_name = row['crop']
+            species_id = species_lookup.get(crop_name)
+            
+            if species_id is not None:
+                cover_crops.append({
+                    "speciesId": int(species_id),  # Convert to regular Python int
+                    "percent": float(row['crop_percent']),  # Convert to regular Python float
+                    "name": str(crop_name)  # Convert to regular Python string
+                })
+            else:
+                print(f"Warning: No species ID found for crop {crop_name}")
         
-        if event_data_id:
-            total_affected_rows += 1
+        if not cover_crops:
+            print(f"Warning: No valid cover crops found for field {field_uuid}, year {year}")
+            continue
+            
+        # Get the first row for group-level data
+        first_row = group.iloc[0]
+        
+        # Convert aerial application to boolean
+        is_aerial = bool(first_row['aerially_applied'])
+        
+        # Get termination type ID and convert to regular Python int
+        termination_type = termination_type_map.get(first_row['termination'])
+        if termination_type is not None:
+            termination_type = int(termination_type)
+        else:
+            print(f"Warning: Unknown termination type '{first_row['termination']}'")
+            
+        try:
+            # Convert seeding rate to regular Python float
+            seeding_rate = float(first_row['seeding_rate']) if pd.notna(first_row['seeding_rate']) else None
+            
+            # Create event with all details
+            event_data_id = insert_cover_crop_event(
+                eventId=13,
+                seasonId=season_id,
+                doneAt=done_at,
+                coverCrops=cover_crops,
+                seedingRate=seeding_rate,
+                isAerialSeeding=is_aerial,
+                terminationTypeId=termination_type
+            )
+            
+            if event_data_id:
+                total_affected_rows += 1
+                print(f"Processed cover crop event for field {field_uuid}, year {year}")
+        except Exception as e:
+            print(f"Error processing cover crop event for field {field_uuid}, year {year}: {str(e)}")
     
     print(f"\nTotal cover crop events processed: {total_affected_rows}")
     return total_affected_rows
-
 ################################################
 # Example usage - Fertilizer application --- MANUAL / Hardcoded 
 
@@ -1377,69 +1437,71 @@ def process_cover_crop_data(excel_path, cover_crops_json_path):
 
 ######################################################################
 # Usage -- FROM EXCEL Sheet -- BULK UPLOAD 
-# if __name__ == "__main__":
-#     #excel_path = 'mmrv_data.xlsx'
-#     #excel_path = 'cif_data.xlsx'
-#     excel_path = 'mmrv_data_template.xlsx'
-#     fertilizers_json_path = 'fertilizers.json'
-#     commodities_json_path = 'commodities.json'
+if __name__ == "__main__":
+    #excel_path = 'mmrv_data.xlsx'
+    #excel_path = 'cif_data.xlsx'
+    excel_path = 'mmrv_data_template.xlsx'
+    fertilizers_json_path = 'fertilizers.json'
+    commodities_json_path = 'commodities.json'
     
-    # # Process fertilizer data
-    # print("\nProcessing fertilizer data...")
-    # process_fertilizer_data(
-    #     excel_path=excel_path
-    #     fertilizers_json_path=fertilizers_json_path
-    # )
+    # Process fertilizer data
+    print("\nProcessing fertilizer data...")
+    process_fertilizer_data(
+        excel_path=excel_path,
+        fertilizers_json_path=fertilizers_json_path
+    )
     
-    # # Process planting data
-    # print("\nProcessing planting data...")
-    # planting_rows = process_planting_data(
-    #     excel_path=excel_path,
-    #     commodities_json_path=commodities_json_path
-    # )
-    # print(f"Total planting events processed: {planting_rows}")
+    # Process planting data
+    print("\nProcessing planting data...")
+    planting_rows = process_planting_data(
+        excel_path=excel_path,
+        commodities_json_path=commodities_json_path
+    )
+    print(f"Total planting events processed: {planting_rows}")
     
-    # # Process harvest data
-    # print("\nProcessing harvest data...")
-    # harvest_rows = process_harvest_data(
-    #     excel_path=excel_path,
-    #     commodities_json_path=commodities_json_path
-    # )
-    # print(f"Total harvest events processed: {harvest_rows}")
+    # Process harvest data
+    print("\nProcessing harvest data...")
+    harvest_rows = process_harvest_data(
+        excel_path=excel_path,
+        commodities_json_path=commodities_json_path
+    )
+    print(f"Total harvest events processed: {harvest_rows}")
 
-    # # Process tillage data
-    # tillage_rows = process_tillage_data(
-    #     excel_path='mmrv_data.xlsx',
-    #     tillage_type_dict=tillage_type,
-    #     tillage_residue_dict=tillage_residue
-    # )
+    # Process tillage data
+    tillage_rows = process_tillage_data(
+        excel_path='mmrv_data.xlsx',
+        tillage_type_dict=tillage_type,
+        tillage_residue_dict=tillage_residue
+    )
 
-    # print(f"Total tillage events processed: {tillage_rows}")
+    print(f"Total tillage events processed: {tillage_rows}")
 
-    # print("\nProcessing cover crop data...")
-    # cc_rows = process_cover_crop_data(
-    #     excel_path='mmrv_data_template.xlsx',
-    #     cover_crops_json_path='covercrops.json'
-    # )
-    # print(f"Total cover cropping events processed: {cc_rows}")
+    print("\nProcessing cover crop data...")
+    cc_rows = process_cover_crop_data(
+        excel_path='mmrv_data_template.xlsx',
+        cover_crops_json_path='covercrops.json'
+    )
+    print(f"Total cover cropping events processed: {cc_rows}")
 
 ################################################
 # Example Usage, Planting and Harvest - DO IT THIS WAY IF YOU'RE RUNNIGN SPECIFIC FIELDS AGI Data
 
 # CC 
-cover_crops = [
-    {"speciesId": 16, "percent": 60, "name": "Buckwheat"},
-    {"speciesId": 2, "percent": 40, "name": "Barley"}
-]
+# cover_crops = [
+#     {"speciesId": 16, "percent": 60, "name": "Buckwheat"},
+#     {"speciesId": 2, "percent": 40, "name": "Barley"}
+# ]
 
-result = insert_cover_crop_event(
-    eventId=13,
-    seasonId=get_season_id('1be67eef-fe42-493d-b0d4-957b379d4621', 2024),
-    doneAt="2024-01-27",
-    coverCrops=cover_crops,
-    seedingRate=50,        # Optional
-    isAerialSeeding=True     # Optional
-)
+# result = insert_cover_crop_event(
+#     eventId=13,
+#     seasonId=get_season_id('1be67eef-fe42-493d-b0d4-957b379d4621', 2024),
+#     doneAt="2024-01-27",
+#     coverCrops=cover_crops,
+#     seedingRate=50,        # Optional
+#     isAerialSeeding=True,     # Optional
+#     terminationTypeId=3        # Optional (3 = Roller-Crimper)
+# )
+
 # # Example dictionary of producers and their field IDs
 # producers_fields = {
 #     "7b227522-8f36-4ecf-8bb7-1ad98d4d6c8c": ["3d72c0ce-c16c-48c0-be8c-384a0dcaff68", "76e43cc9-2e2a-47e8-a5ae-baaefbdf0c84", "07206026-bd14-4732-b82a-1657dc68e3fa", '37a2f972-90c5-40c9-a5f1-56d5f8768e27'],
