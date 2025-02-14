@@ -1,3 +1,5 @@
+# Author: Austin Arrington
+
 import requests
 import json
 from pathlib import Path
