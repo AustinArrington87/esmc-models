@@ -565,7 +565,7 @@ def insert_event_multiple_seasons(eventId, seasonIds, doneAt):
     return event_ids
 
 # Function to insert fertilizer data and then link it to an event
-def insert_fertilizer_event(eventId, seasonIds, doneAt, applicationMethodId, fertilizerId, fertilizerCategoryId, rate, liquidDensity):
+def insert_fertilizer_event(eventId, seasonIds, doneAt, applicationMethodId, fertilizerId, fertilizerCategoryId, rate, injectionDepth=None, liquidDensity=None):
     total_affected_rows = 0
 
     # Loop over each seasonId and execute the mutations
@@ -581,6 +581,7 @@ def insert_fertilizer_event(eventId, seasonIds, doneAt, applicationMethodId, fer
             $fertilizerId: smallint,
             $fertilizerCategoryId: String,
             $rate: numeric,
+            $injectionDepth: numeric,
             $liquidDensity: numeric
         ) {
             insertFarmFertilizerData(objects: {
@@ -589,6 +590,7 @@ def insert_fertilizer_event(eventId, seasonIds, doneAt, applicationMethodId, fer
                 fertilizerId: $fertilizerId,
                 fertilizerCategoryId: $fertilizerCategoryId,
                 rate: $rate,
+                injectionDepth: $injectionDepth,
                 liquidDensity: $liquidDensity
             }) {
                 affected_rows
@@ -603,6 +605,7 @@ def insert_fertilizer_event(eventId, seasonIds, doneAt, applicationMethodId, fer
             "fertilizerId": fertilizerId,
             "fertilizerCategoryId": fertilizerCategoryId,
             "rate": rate,
+            "injectionDepth": injectionDepth,
             "liquidDensity": liquidDensity
         }
 
@@ -931,7 +934,7 @@ def process_harvest_data(excel_path, commodities_json_path):
 
 # process Fertilizer data from Excel Spreadhseet 
 def process_fertilizer_data(excel_path, fertilizers_json_path):
-    """Process fertilizer data from Excel and create events."""
+    """Process fertilizer data from Excel sheet."""
     # Read Excel file - specifically from the Fertilizer sheet
     df = pd.read_excel(excel_path, sheet_name='Fertilizer')
     
@@ -940,11 +943,9 @@ def process_fertilizer_data(excel_path, fertilizers_json_path):
     
     # Get unique field-year combinations and get season IDs
     unique_field_years = df[['field_uuid', 'year']].drop_duplicates()
-    season_ids_by_year = {}  # Dictionary to store season IDs by year
+    season_ids_by_year_field = {}
     
     # Get season IDs and organize them by year and field
-    season_ids_by_year_field = {}  # Dictionary to store season IDs by year and field
-    
     for _, row in unique_field_years.iterrows():
         field_uuid = str(row['field_uuid'])
         year = int(row['year'])
@@ -979,10 +980,10 @@ def process_fertilizer_data(excel_path, fertilizers_json_path):
         # Convert rate to float/decimal
         rate = float(row['rate'])
         
-        # Prepare parameters for insert_fertilizer_event
-        # Set liquidDensity to 8.3 for Manure Dairy Cattle Slurry, None for everything else
-        liquid_density = float(8.3) if row['fert_type'] == "Manure Dairy Cattle Slurry" else None
+        # Get injection depth if provided (assuming it's a column in your Excel sheet)
+        injection_depth = float(row['injection_depth']) if pd.notna(row.get('injection_depth')) else None
         
+        # Prepare parameters for insert_fertilizer_event
         params = {
             'eventId': 11,
             'seasonIds': application_seasons,
@@ -991,7 +992,8 @@ def process_fertilizer_data(excel_path, fertilizers_json_path):
             'fertilizerId': fert_details['id'],
             'fertilizerCategoryId': fert_details['categoryId'],
             'rate': rate,
-            'liquidDensity': liquid_density
+            'injectionDepth': injection_depth,
+            'liquidDensity': 8.3
         }
         
         # Insert fertilizer event with appropriate parameters
@@ -1266,6 +1268,7 @@ def process_cover_crop_data(excel_path, cover_crops_json_path):
     
     print(f"\nTotal cover crop events processed: {total_affected_rows}")
     return total_affected_rows
+
 ################################################
 # Example usage - Fertilizer application --- MANUAL / Hardcoded 
 
@@ -1282,17 +1285,18 @@ def process_cover_crop_data(excel_path, cover_crops_json_path):
 #     seasons.append(season_id)
 
 #get_season_id('1be67eef-fe42-493d-b0d4-957b379d4621', 2024)
-
+# seasons = [get_season_id('1be67eef-fe42-493d-b0d4-957b379d4621', 2024)]
 
 # ##################
 # # Usage example with necessary parameters
 # seasons = seasons
 # event_id = 11
 # done_at = "2024-10-04"
-# application_method_id = 3
+# application_method_id = 5
 # fertilizer_id = 3
 # fertilizer_category_id = 'Organic'
 # rate = 6000
+# injection_depth = 2.2
 # liquid_density = 8.3
 
 # # Execute the function -- Insert Fert events
@@ -1304,6 +1308,7 @@ def process_cover_crop_data(excel_path, cover_crops_json_path):
 #     fertilizerId=fertilizer_id,
 #     fertilizerCategoryId=fertilizer_category_id,
 #     rate=rate,
+#     injectionDepth=injection_depth,
 #     liquidDensity=liquid_density
 # )
 
@@ -1361,9 +1366,8 @@ def process_cover_crop_data(excel_path, cover_crops_json_path):
 ######################################################################
 # Usage -- FROM EXCEL Sheet -- BULK UPLOAD 
 if __name__ == "__main__":
-    #excel_path = 'mmrv_data.xlsx'
-    #excel_path = 'cif_data.xlsx'
     excel_path = 'mmrv_data_template.xlsx'
+    #excel_path = 'mmrv_data_template.xlsx'
     fertilizers_json_path = 'fertilizers.json'
     commodities_json_path = 'commodities.json'
     
@@ -1374,37 +1378,37 @@ if __name__ == "__main__":
         fertilizers_json_path=fertilizers_json_path
     )
     
-    # Process planting data
-    print("\nProcessing planting data...")
-    planting_rows = process_planting_data(
-        excel_path=excel_path,
-        commodities_json_path=commodities_json_path
-    )
-    print(f"Total planting events processed: {planting_rows}")
+    # # Process planting data
+    # print("\nProcessing planting data...")
+    # planting_rows = process_planting_data(
+    #     excel_path=excel_path,
+    #     commodities_json_path=commodities_json_path
+    # )
+    # print(f"Total planting events processed: {planting_rows}")
     
-    # Process harvest data
-    print("\nProcessing harvest data...")
-    harvest_rows = process_harvest_data(
-        excel_path=excel_path,
-        commodities_json_path=commodities_json_path
-    )
-    print(f"Total harvest events processed: {harvest_rows}")
+    # # Process harvest data
+    # print("\nProcessing harvest data...")
+    # harvest_rows = process_harvest_data(
+    #     excel_path=excel_path,
+    #     commodities_json_path=commodities_json_path
+    # )
+    # print(f"Total harvest events processed: {harvest_rows}")
 
-    # Process tillage data
-    tillage_rows = process_tillage_data(
-        excel_path='mmrv_data.xlsx',
-        tillage_type_dict=tillage_type,
-        tillage_residue_dict=tillage_residue
-    )
+    # # Process tillage data
+    # tillage_rows = process_tillage_data(
+    #     excel_path='mmrv_data.xlsx',
+    #     tillage_type_dict=tillage_type,
+    #     tillage_residue_dict=tillage_residue
+    # )
 
-    print(f"Total tillage events processed: {tillage_rows}")
+    # print(f"Total tillage events processed: {tillage_rows}")
 
-    print("\nProcessing cover crop data...")
-    cc_rows = process_cover_crop_data(
-        excel_path='mmrv_data_template.xlsx',
-        cover_crops_json_path='covercrops.json'
-    )
-    print(f"Total cover cropping events processed: {cc_rows}")
+    # print("\nProcessing cover crop data...")
+    # cc_rows = process_cover_crop_data(
+    #     excel_path='mmrv_data_template.xlsx',
+    #     cover_crops_json_path='covercrops.json'
+    # )
+    # print(f"Total cover cropping events processed: {cc_rows}")
 
 ################################################
 # Example Usage, Planting and Harvest - DO IT THIS WAY IF YOU'RE RUNNIGN SPECIFIC FIELDS AGI Data
@@ -1450,3 +1454,26 @@ if __name__ == "__main__":
 #     '94477c71-1741-4e73-8ff3-b01ef68d9816'
 # ]
 # process_producer_events(producer_ids, specific_year=2024)
+
+######
+
+# ef920cb5-944a-4756-8b8d-6c5e20ab0f91 - M. Canny ✓ (All fields rewritten 11/29)
+# 94477c71-1741-4e73-8ff3-b01ef68d9816 - T. Nichols ✓ (All fields rewritten 11/29)
+
+# '1b8781bf-3126-474d-93ea-a6d359d60f11' C. Basinger ✓ (All fields rewritten 11/25)
+
+# '7b227522-8f36-4ecf-8bb7-1ad98d4d6c8c' - J. WILLIAMS ✓ (All fields rewritten 11/25)
+# P Rinehart - '3d72c0ce-c16c-48c0-be8c-384a0dcaff68' ✓
+# K Rinehart - '76e43cc9-2e2a-47e8-a5ae-baaefbdf0c84' ✓
+# Soybeans harvested 2023-10-09, 21.04690989 bu/ac + '' harvested 2024-06-16 213.1069567 bua/acre + Winter Wheat harvested 2024-06-17 10.8198256 bu/acre (removed from JSON)
+# P Rinehart West - '07206026-bd14-4732-b82a-1657dc68e3fa' ✓ -- missing the partner_field_id, also empty yield Sorghum (removed from JSON)
+# Smith West - '37a2f972-90c5-40c9-a5f1-56d5f8768e27' ✓
+
+# '63b36320-8e38-454f-97c9-e4dcb3510d61' - T. Ball ✓ (All fields rewritten 11/29)
+# Krueger W - 'fe325a21-4f88-42aa-8f81-122c9ca04aec' ✓ # Soybean planting and harvest event, some conflict with a corn planting but no harvest (removed from JSON)
+# Krueger E - '9d8feb4b-d87b-49c3-99f1-73839623267f' ✓ # No Harvest events + Corn 2024-04-09, empty planting event 2024-05-10 (removed from JSON)
+
+# '37459734-03ac-4b4f-95c0-bb4311beb121' - T. Langford ✓ (All fields rewritten 11/29)
+# East of Goldie - 'ebfdbc2f-566a-4cf8-a6d6-19fece8ebe35' Winter Wheat planting and harvest + empty planting event 2024-05-09 (removed from JSON)
+# Kevin Thomas - '6115fcad-56bf-44d9-9957-da03b6cc1a84' empty plant event 2023-10-10, winter wheat harvest (removd from JSON)
+# Singletons - 'ba6184ab-31ee-4c20-b87a-1682704bca7a' empty plant event 2023-12-07 + Corn {planting }+ Sorghum harvest event but no sorghum planting (removed from JSON)
