@@ -10,7 +10,7 @@ import time
 c = mrv.configure(".env.production")
 
 # Your Hasura admin secret key
-admin_secret_key = "D2FwLafuZdMQuDue7gv66xkD8xuSgW"
+admin_secret_key = ""
 
 # Set up the headers with the Hasura admin secret
 headers = {
