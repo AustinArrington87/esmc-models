@@ -13,7 +13,7 @@ from contextlib import contextmanager
 c = mrv.configure(".env.production")
 
 # Your Hasura admin secret key
-admin_secret_key = "EnterKey"
+admin_secret_key = "D2FwLafuZdMQuDue7gv66xkD8xuSgW"
 
 # Set up the headers with the Hasura admin secret
 headers = {
@@ -34,7 +34,7 @@ GMI_PROJECTS = {
 }
 
 # Years to analyze
-ANALYSIS_YEARS = list(range(2017, 2025))  # 2017 to 2024
+ANALYSIS_YEARS = list(range(2020, 2025))  # 2020 to 2024
 
 # Global variable for log file
 log_file = None
@@ -484,7 +484,7 @@ def calculate_trends(data: Dict[str, Any]) -> Dict[str, Any]:
 
 def generate_trend_report(trends: Dict[str, Any], project_name: str) -> str:
     """Generate a report showing trends for key metrics."""
-    report = f"\n{project_name} Practice Trends (2017-2024)"
+    report = f"\n{project_name} Practice Trends (2020-2024)"
     report += "\n" + "=" * 50 + "\n"
     
     for metric, changes in trends.items():
@@ -626,7 +626,7 @@ def export_to_csv(all_projects_data: Dict[str, Dict[str, Any]], combined_data: D
         trend_rows = []
         for project_name, project_data in all_projects_data.items():
             # Calculate year-over-year changes
-            for year in range(2017, 2025):  # Start from 2017 to have previous year for comparison
+            for year in range(2020, 2025):  # Start from 2020 to have previous year for comparison
                 if year in project_data['years'] and year-1 in project_data['years']:
                     current = project_data['years'][year]
                     previous = project_data['years'][year-1]
@@ -657,34 +657,46 @@ def main():
         log_progress(f"\nAnalyzing {project_name}...")
         start_time = time.time()
         
-        project_data = analyze_project_data(project_id)
-        all_projects_data[project_name] = project_data
-        
-        # Generate and print project report
-        report = generate_project_report(project_data, project_name)
-        print(report)
-        
-        # Calculate and print trends for individual project
-        trends = calculate_trends(project_data)
-        trend_report = generate_trend_report(trends, project_name)
-        print(trend_report)
+        try:
+            project_data = analyze_project_data(project_id)
+            if project_data:  # Only add if we got valid data
+                all_projects_data[project_name] = project_data
+                
+                # Generate and print project report
+                report = generate_project_report(project_data, project_name)
+                print(report)
+                
+                # Calculate and print trends for individual project
+                trends = calculate_trends(project_data)
+                trend_report = generate_trend_report(trends, project_name)
+                print(trend_report)
+        except Exception as e:
+            log_progress(f"Error analyzing project {project_name}: {str(e)}")
+            continue
         
         end_time = time.time()
         log_progress(f"Completed {project_name} analysis in {end_time - start_time:.1f} seconds")
     
-    # Analyze combined data
-    log_progress("\nAnalyzing combined data across all projects...")
-    combined_data = analyze_combined_data(all_projects_data)
-    combined_report = generate_project_report(combined_data, "All GMI Projects Combined")
-    print(combined_report)
-    
-    # Calculate and print combined trends
-    combined_trends = calculate_trends(combined_data)
-    combined_trend_report = generate_trend_report(combined_trends, "All GMI Projects Combined")
-    print(combined_trend_report)
-    
-    # Export to Excel
-    export_to_csv(all_projects_data, combined_data)
+    # Only proceed with combined analysis if we have data from at least one project
+    if all_projects_data:
+        try:
+            # Analyze combined data
+            log_progress("\nAnalyzing combined data across all projects...")
+            combined_data = analyze_combined_data(all_projects_data)
+            combined_report = generate_project_report(combined_data, "All GMI Projects Combined")
+            print(combined_report)
+            
+            # Calculate and print combined trends
+            combined_trends = calculate_trends(combined_data)
+            combined_trend_report = generate_trend_report(combined_trends, "All GMI Projects Combined")
+            print(combined_trend_report)
+            
+            # Export to Excel
+            export_to_csv(all_projects_data, combined_data)
+        except Exception as e:
+            log_progress(f"Error in combined analysis: {str(e)}")
+    else:
+        log_progress("No valid project data available for combined analysis")
     
     log_progress("Analysis complete!")
 
