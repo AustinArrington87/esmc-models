@@ -13,7 +13,7 @@ from contextlib import contextmanager
 c = mrv.configure(".env.production")
 
 # Your Hasura admin secret key
-admin_secret_key = "Enter"
+admin_secret_key = "SECRET"
 
 # Set up the headers with the Hasura admin secret
 headers = {
@@ -88,24 +88,38 @@ FERTILIZER_MAP = load_fertilizer_mapping()
 
 @contextmanager
 def setup_logging():
-    """Context manager to handle logging setup and cleanup."""
-    global log_file
+    """Set up logging to both console and file."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = "gmi_analysis_results"
+    log_filename = f"gmi_analysis_results/GMI_Analysis_{timestamp}.txt"
     
-    # Create output directory if it doesn't exist
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    # Create directory if it doesn't exist
+    os.makedirs("gmi_analysis_results", exist_ok=True)
     
     # Open log file
-    log_file = open(f"{output_dir}/analysis_log_{timestamp}.txt", 'w')
-    
-    try:
-        yield
-    finally:
-        if log_file:
-            log_file.close()
-            log_file = None
+    with open(log_filename, 'w') as log_file:
+        def log_to_file(message):
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            log_file.write(f"[{timestamp}] {message}\n")
+            log_file.flush()
+        
+        # Store original print function
+        original_print = print
+        
+        # Define new print function that writes to both console and file
+        def custom_print(*args, **kwargs):
+            message = " ".join(str(arg) for arg in args)
+            original_print(*args, **kwargs)
+            log_to_file(message)
+        
+        # Replace print with custom function
+        import builtins
+        builtins.print = custom_print
+        
+        try:
+            yield
+        finally:
+            # Restore original print function
+            builtins.print = original_print
 
 def log_progress(message: str, indent: int = 0):
     """Helper function to log progress with timestamp and indentation."""
@@ -649,56 +663,62 @@ def export_to_csv(all_projects_data: Dict[str, Dict[str, Any]], combined_data: D
 
 def main():
     """Main function to analyze all GMI projects."""
-    log_progress("Starting GMI project analysis")
-    all_projects_data = {}
+    start_time = time.time()
     
-    # Analyze each project
-    for project_name, project_id in GMI_PROJECTS.items():
-        log_progress(f"\nAnalyzing {project_name}...")
-        start_time = time.time()
+    with setup_logging():
+        log_progress("Starting GMI project analysis")
+        all_projects_data = {}
         
-        try:
-            project_data = analyze_project_data(project_id)
-            if project_data:  # Only add if we got valid data
-                all_projects_data[project_name] = project_data
-                
-                # Generate and print project report
-                report = generate_project_report(project_data, project_name)
-                print(report)
-                
-                # Calculate and print trends for individual project
-                trends = calculate_trends(project_data)
-                trend_report = generate_trend_report(trends, project_name)
-                print(trend_report)
-        except Exception as e:
-            log_progress(f"Error analyzing project {project_name}: {str(e)}")
-            continue
+        # Analyze each project
+        for project_name, project_id in GMI_PROJECTS.items():
+            log_progress(f"\nAnalyzing {project_name}...")
+            start_time = time.time()
+            
+            try:
+                project_data = analyze_project_data(project_id)
+                if project_data:  # Only add if we got valid data
+                    all_projects_data[project_name] = project_data
+                    
+                    # Generate and print project report
+                    report = generate_project_report(project_data, project_name)
+                    print(report)
+                    
+                    # Calculate and print trends for individual project
+                    trends = calculate_trends(project_data)
+                    trend_report = generate_trend_report(trends, project_name)
+                    print(trend_report)
+            except Exception as e:
+                log_progress(f"Error analyzing project {project_name}: {str(e)}")
+                continue
+            
+            end_time = time.time()
+            log_progress(f"Completed {project_name} analysis in {end_time - start_time:.1f} seconds")
         
+        # Only proceed with combined analysis if we have data from at least one project
+        if all_projects_data:
+            try:
+                # Analyze combined data
+                log_progress("\nAnalyzing combined data across all projects...")
+                combined_data = analyze_combined_data(all_projects_data)
+                combined_report = generate_project_report(combined_data, "All GMI Projects Combined")
+                print(combined_report)
+                
+                # Calculate and print combined trends
+                combined_trends = calculate_trends(combined_data)
+                combined_trend_report = generate_trend_report(combined_trends, "All GMI Projects Combined")
+                print(combined_trend_report)
+                
+                # Export to Excel
+                export_to_csv(all_projects_data, combined_data)
+            except Exception as e:
+                log_progress(f"Error in combined analysis: {str(e)}")
+        else:
+            log_progress("No valid project data available for combined analysis")
+        
+        # Log completion time
         end_time = time.time()
-        log_progress(f"Completed {project_name} analysis in {end_time - start_time:.1f} seconds")
-    
-    # Only proceed with combined analysis if we have data from at least one project
-    if all_projects_data:
-        try:
-            # Analyze combined data
-            log_progress("\nAnalyzing combined data across all projects...")
-            combined_data = analyze_combined_data(all_projects_data)
-            combined_report = generate_project_report(combined_data, "All GMI Projects Combined")
-            print(combined_report)
-            
-            # Calculate and print combined trends
-            combined_trends = calculate_trends(combined_data)
-            combined_trend_report = generate_trend_report(combined_trends, "All GMI Projects Combined")
-            print(combined_trend_report)
-            
-            # Export to Excel
-            export_to_csv(all_projects_data, combined_data)
-        except Exception as e:
-            log_progress(f"Error in combined analysis: {str(e)}")
-    else:
-        log_progress("No valid project data available for combined analysis")
-    
-    log_progress("Analysis complete!")
+        duration = end_time - start_time
+        log_progress(f"\nAnalysis completed in {duration:.2f} seconds")
 
 if __name__ == "__main__":
     main() 
