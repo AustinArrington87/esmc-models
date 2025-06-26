@@ -3,8 +3,8 @@ import json
 import csv
 import statistics
 
-API_KEY = "oEV1SFT7SudppaWtQY7zrhHsZNGAwUz5Mmdl8eUiPb3VcrrS"
-URL = "Apikey"
+API_KEY = "Apikey"
+URL = "https://api.regrow.ag/dndc-scenarios-service/v0/api/projects"
 
 headers = {
     "x-apikey": API_KEY,
